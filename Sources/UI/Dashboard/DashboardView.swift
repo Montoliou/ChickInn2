@@ -15,21 +15,42 @@ struct DashboardView: View {
         animation: .default)
     private var chickens: FetchedResults<Chicken>
 
-    @State private var todayCount = 0
-    @State private var weekCount = 0
-    @State private var monthCount = 0
-    @State private var yearCount = 0
+    // MARK: - Reactive computed stats (update automatically with FetchedResults)
+    private var todayCount: Int {
+        let cal = Calendar.current
+        return eggs.filter { cal.isDateInToday($0.laidAt) }.count
+    }
+    private var weekCount: Int {
+        let cal = Calendar.current
+        return eggs.filter { cal.isDate($0.laidAt, equalTo: .now, toGranularity: .weekOfYear) }.count
+    }
+    private var monthCount: Int {
+        let cal = Calendar.current
+        return eggs.filter { cal.isDate($0.laidAt, equalTo: .now, toGranularity: .month) }.count
+    }
+    private var yearCount: Int {
+        let cal = Calendar.current
+        return eggs.filter { cal.isDate($0.laidAt, equalTo: .now, toGranularity: .year) }.count
+    }
 
     // MARK: - Extracted sub‑views to help the Swift type‑checker
     @ViewBuilder
     private var gallerySection: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(chickens) { chicken in
-                    chickenButton(for: chicken)
+        if chickens.isEmpty {
+            ContentUnavailableView(
+                "Noch keine Hühner",
+                systemImage: "bird",
+                description: Text("Füge dein erstes Huhn im Tab \"Hühner\" hinzu.")
+            )
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(chickens) { chicken in
+                        chickenButton(for: chicken)
+                    }
                 }
+                .padding(.horizontal)
             }
-            .padding(.horizontal)
         }
     }
 
@@ -46,19 +67,27 @@ struct DashboardView: View {
         Button {
             addEgg(for: chicken)
         } label: {
-            if let uiImg = UIImage(data: chicken.photoData),
-               uiImg.size != .zero {
-                Image(uiImage: uiImg)
-                    .resizable()
-            } else {
-                Image(systemName: "bird")
-                    .resizable()
-                    .foregroundStyle(Color.accentColor)
+            VStack(spacing: 4) {
+                if let uiImg = UIImage(data: chicken.photoData),
+                   uiImg.size != .zero {
+                    Image(uiImage: uiImg)
+                        .resizable()
+                        .frame(width: 80, height: 80)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.accentColor, lineWidth: 2))
+                } else {
+                    Image(systemName: "bird")
+                        .resizable()
+                        .frame(width: 80, height: 80)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.accentColor, lineWidth: 2))
+                        .foregroundStyle(Color.accentColor)
+                }
+                Text(chicken.name)
+                    .font(.caption)
+                    .lineLimit(1)
             }
         }
-        .frame(width: 80, height: 80)
-        .clipShape(Circle())
-        .overlay(Circle().stroke(Color.accentColor, lineWidth: 2))
         .accessibilityLabel("Ei bei \(chicken.name) hinzufügen")
     }
 
@@ -72,7 +101,6 @@ struct DashboardView: View {
                 .padding()
             }
             .navigationTitle("Dashboard")
-            .onAppear(perform: calculateStats)
         }
     }
 
@@ -83,16 +111,6 @@ struct DashboardView: View {
         egg.laidAt = .now
         egg.chicken = chicken
         try? ctx.save()
-        calculateStats()
-    }
-
-    private func calculateStats() {
-        let cal = Calendar.current
-        let now = Date()
-        todayCount = eggs.filter { cal.isDate($0.laidAt, inSameDayAs: now) }.count
-        weekCount  = eggs.filter { cal.isDate($0.laidAt, equalTo: now, toGranularity: .weekOfYear) }.count
-        monthCount = eggs.filter { cal.isDate($0.laidAt, equalTo: now, toGranularity: .month) }.count
-        yearCount  = eggs.filter { cal.isDate($0.laidAt, equalTo: now, toGranularity: .year) }.count
     }
 }
 

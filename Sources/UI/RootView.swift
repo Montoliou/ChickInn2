@@ -7,9 +7,9 @@ struct RootView: View {
                 .tabItem {
                     Label("Dashboard", systemImage: "chart.bar")
                 }
-            ReportView()
+            ReportsView()
                 .tabItem {
-                    Label("Reports", systemImage: "calendar")
+                    Label("Auswertung", systemImage: "calendar")
                 }
             ChickenListView()
                 .tabItem {
