@@ -1,9 +1,12 @@
 import SwiftUI
 import PhotosUI
+import CoreData
 
-struct AddChickenView: View {
+struct EditChickenView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.managedObjectContext) private var context
+    @Environment(\.managedObjectContext) private var ctx
+
+    let chickenID: NSManagedObjectID
 
     @State private var name = ""
     @State private var notes = ""
@@ -14,24 +17,26 @@ struct AddChickenView: View {
         NavigationStack {
             Form {
                 TextField("Name", text: $name)
+
                 PhotosPicker(selection: $photoItem, matching: .images) {
-                    Label("Foto auswählen", systemImage: "photo")
+                    Label("Foto ändern", systemImage: "photo")
                 }
                 if let data = photoData, let uiImage = UIImage(data: data) {
                     Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFit()
                 }
+
                 TextField("Notiz", text: $notes, axis: .vertical)
             }
-            .navigationTitle("Huhn anlegen")
+            .navigationTitle("Huhn bearbeiten")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Speichern", action: save)
                         .disabled(name.isEmpty)
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Abbrechen", action: { dismiss() })
+                    Button("Abbrechen") { dismiss() }
                 }
             }
             .onChange(of: photoItem) { _, newItem in
@@ -41,17 +46,24 @@ struct AddChickenView: View {
                     }
                 }
             }
+            .task {
+                if let chicken = try? ctx.existingObject(with: chickenID) as? Chicken {
+                    name = chicken.name
+                    notes = chicken.notes ?? ""
+                    photoData = chicken.photoData.isEmpty ? nil : chicken.photoData
+                }
+            }
         }
     }
 
     private func save() {
-        let chicken = Chicken(context: context)
-        chicken.id = UUID()
+        guard let chicken = try? ctx.existingObject(with: chickenID) as? Chicken else { return }
         chicken.name = name
-        chicken.createdAt = .now
-        chicken.photoData = photoData ?? Data()
         chicken.notes = notes.isEmpty ? nil : notes
-        try? context.save()
+        if let data = photoData {
+            chicken.photoData = data
+        }
+        try? ctx.save()
         dismiss()
     }
 }

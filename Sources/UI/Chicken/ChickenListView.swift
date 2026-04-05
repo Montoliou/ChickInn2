@@ -66,7 +66,21 @@ private struct ChickenRow: View {
                         .frame(width: 44, height: 44)
                         .clipShape(Circle())
                 }
-                Text(chicken.name)
+                VStack(alignment: .leading) {
+                    Text(chicken.name)
+                    if let lastEgg = (chicken.eggs as NSSet)
+                        .compactMap({ $0 as? Egg })
+                        .sorted(by: { $0.laidAt > $1.laidAt })
+                        .first {
+                        Text("Letztes Ei: \(lastEgg.laidAt.formatted(date: .abbreviated, time: .omitted))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Noch kein Ei erfasst")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         }
     }
