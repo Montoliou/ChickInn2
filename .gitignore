@@ -17,6 +17,7 @@ dist-ssr
 .env.local
 .env.production
 .ftp-credentials
+api/config.php
 
 # Editor directories and files
 .vscode/*
