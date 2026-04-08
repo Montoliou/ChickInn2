@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+/* Safe area for iPhone notch / home indicator */
+body {
+  margin: 0;
+  background: #f9fafb;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}

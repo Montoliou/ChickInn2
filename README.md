@@ -1,25 +1,73 @@
-# ChickInn 🐔🥚
+# React + TypeScript + Vite
 
-SwiftUI iOS 17 sample app for tracking your backyard flock.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-To build:
+Currently, two official plugins are available:
 
-```bash
-brew install xcodegen    # if not installed
-cd ChickInn
-xcodegen generate
-open ChickInn.xcodeproj
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
+
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
 
-## iCloud & CloudKit set‑up
-1. In Xcode > Signing & Capabilities add **iCloud** and enable **CloudKit** with **Use default container**.
-2. In the CloudKit Dashboard create a **Shared Database** zone called **EggTrackerShare**.
-3. Run on a real device signed into iCloud; invite a second Apple‑ID via the built‑in share sheet (Settings tab) to verify Family Sharing.
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-## Seed data
-On first launch the app checks `SeedData/seed.json` and inserts demo content (3 chickens, 20 eggs, 1 moult, 1 medication).
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
 
-## Tests
-Run **Cmd‑U**. Coverage target ≥80 %.
-
-Happy hatching! 🐣
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
