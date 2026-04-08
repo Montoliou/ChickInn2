@@ -1,9 +1,5 @@
-import { useEffect, useState } from 'react'
-import {
-  collection, query, where, orderBy,
-  onSnapshot, addDoc, deleteDoc, doc, updateDoc
-} from 'firebase/firestore'
-import { db } from '../firebase'
+import { useEffect, useState, useCallback } from 'react'
+import { apiFetch } from '../api'
 import { useAuth } from '../context/AuthContext'
 import type { Chicken } from '../types'
 
@@ -12,36 +8,41 @@ export function useChickens() {
   const [chickens, setChickens] = useState<Chicken[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const refresh = useCallback(async () => {
     if (!user) { setChickens([]); setLoading(false); return }
-    const q = query(
-      collection(db, 'chickens'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'asc')
-    )
-    const unsub = onSnapshot(q, (snap) => {
-      setChickens(snap.docs.map(d => ({ id: d.id, ...d.data() } as Chicken)))
+    try {
+      const data = await apiFetch<Chicken[]>('chickens.php')
+      setChickens(data)
+    } catch (err) {
+      console.error('Failed to load chickens:', err)
+    } finally {
       setLoading(false)
-    })
-    return unsub
+    }
   }, [user])
 
+  useEffect(() => { refresh() }, [refresh])
+
   const addChicken = async (data: Omit<Chicken, 'id' | 'userId' | 'createdAt'>) => {
-    if (!user) return
-    await addDoc(collection(db, 'chickens'), {
-      ...data,
-      userId: user.uid,
-      createdAt: Date.now(),
+    const created = await apiFetch<Chicken>('chickens.php', {
+      method: 'POST',
+      body: JSON.stringify(data),
     })
+    setChickens(prev => [...prev, created])
+    return created
   }
 
-  const updateChicken = async (id: string, data: Partial<Chicken>) => {
-    await updateDoc(doc(db, 'chickens', id), data)
+  const updateChicken = async (id: number, data: Partial<Chicken>) => {
+    const updated = await apiFetch<Chicken>(`chickens.php?id=${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+    setChickens(prev => prev.map(c => c.id === id ? updated : c))
   }
 
-  const deleteChicken = async (id: string) => {
-    await deleteDoc(doc(db, 'chickens', id))
+  const deleteChicken = async (id: number) => {
+    await apiFetch(`chickens.php?id=${id}`, { method: 'DELETE' })
+    setChickens(prev => prev.filter(c => c.id !== id))
   }
 
-  return { chickens, loading, addChicken, updateChicken, deleteChicken }
+  return { chickens, loading, addChicken, updateChicken, deleteChicken, refresh }
 }

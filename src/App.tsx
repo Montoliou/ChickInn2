@@ -13,8 +13,8 @@ function AppRoutes() {
 
   if (loading) {
     return (
-      <div className="min-h-svh flex items-center justify-center">
-        <div className="text-5xl animate-bounce">🐔</div>
+      <div className="min-h-svh flex items-center justify-center bg-green-50">
+        <div className="w-10 h-10 border-3 border-green-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -37,7 +37,7 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>

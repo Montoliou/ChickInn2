@@ -1,35 +1,36 @@
 export interface Chicken {
-  id: string
-  userId: string
+  id: number
+  userId: number
   name: string
-  notes?: string
-  photoUrl?: string
+  breed?: string | null
+  notes?: string | null
+  photoUrl?: string | null
   createdAt: number // Unix timestamp ms
 }
 
 export interface Egg {
-  id: string
-  chickenId: string
-  userId: string
+  id: number
+  chickenId: number
+  userId: number
   laidAt: number // Unix timestamp ms
-  notes?: string
+  notes?: string | null
 }
 
 export interface MoultPeriod {
-  id: string
-  chickenId: string
-  userId: string
+  id: number
+  chickenId: number
+  userId: number
   startDate: number
-  endDate?: number
-  notes?: string
+  endDate?: number | null
+  notes?: string | null
 }
 
 export interface Medication {
-  id: string
-  chickenId: string
-  userId: string
+  id: number
+  chickenId: number
+  userId: number
   name: string
   startDate: number
   endDate: number
-  notes?: string
+  notes?: string | null
 }

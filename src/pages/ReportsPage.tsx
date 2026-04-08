@@ -1,5 +1,6 @@
 import { useEggs } from '../hooks/useEggs'
 import { useChickens } from '../hooks/useChickens'
+import { BarChart3 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
@@ -36,8 +37,8 @@ export function ReportsPage() {
 
       {eggs.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
-          <p className="text-4xl mb-3">📈</p>
-          <p className="text-sm">Noch keine Daten.<br/>Erfasse Eier im Dashboard.</p>
+          <BarChart3 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+          <p className="text-sm">Noch keine Daten.<br />Erfasse Eier im Dashboard.</p>
         </div>
       ) : (
         <>
@@ -59,10 +60,10 @@ export function ReportsPage() {
             <div className="space-y-2">
               {perChicken.map(c => (
                 <div key={c.name} className="flex items-center gap-2">
-                  <span className="text-sm text-gray-700 flex-1">{c.name}</span>
+                  <span className="text-sm text-gray-700 flex-1 truncate">{c.name}</span>
                   <div className="flex-1 bg-gray-100 rounded-full h-2">
                     <div
-                      className="bg-green-400 h-2 rounded-full"
+                      className="bg-green-400 h-2 rounded-full transition-all"
                       style={{ width: `${perChicken[0].count ? (c.count / perChicken[0].count) * 100 : 0}%` }}
                     />
                   </div>

@@ -1,41 +1,45 @@
-import { useEffect, useState } from 'react'
-import {
-  collection, query, where, orderBy,
-  onSnapshot, addDoc, deleteDoc, doc
-} from 'firebase/firestore'
-import { db } from '../firebase'
+import { useEffect, useState, useCallback } from 'react'
+import { apiFetch } from '../api'
 import { useAuth } from '../context/AuthContext'
 import type { Egg } from '../types'
 
-export function useEggs(chickenId?: string) {
+export function useEggs(chickenId?: number) {
   const { user } = useAuth()
   const [eggs, setEggs] = useState<Egg[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const refresh = useCallback(async () => {
     if (!user) { setEggs([]); setLoading(false); return }
-    const constraints = [where('userId', '==', user.uid), orderBy('laidAt', 'desc')]
-    if (chickenId) constraints.splice(1, 0, where('chickenId', '==', chickenId))
-    const q = query(collection(db, 'eggs'), ...constraints)
-    const unsub = onSnapshot(q, (snap) => {
-      setEggs(snap.docs.map(d => ({ id: d.id, ...d.data() } as Egg)))
+    try {
+      const endpoint = chickenId
+        ? `eggs.php?chickenId=${chickenId}`
+        : 'eggs.php'
+      const data = await apiFetch<Egg[]>(endpoint)
+      setEggs(data)
+    } catch (err) {
+      console.error('Failed to load eggs:', err)
+    } finally {
       setLoading(false)
-    })
-    return unsub
+    }
   }, [user, chickenId])
 
-  const addEgg = async (chickenId: string) => {
-    if (!user) return
-    await addDoc(collection(db, 'eggs'), {
-      chickenId,
-      userId: user.uid,
-      laidAt: Date.now(),
+  useEffect(() => { refresh() }, [refresh])
+
+  const addEgg = async (chickenId: number, laidAt?: number) => {
+    const created = await apiFetch<Egg>('eggs.php', {
+      method: 'POST',
+      body: JSON.stringify({
+        chickenId,
+        laidAt: laidAt ?? Date.now(),
+      }),
     })
+    setEggs(prev => [created, ...prev])
   }
 
-  const deleteEgg = async (id: string) => {
-    await deleteDoc(doc(db, 'eggs', id))
+  const deleteEgg = async (id: number) => {
+    await apiFetch(`eggs.php?id=${id}`, { method: 'DELETE' })
+    setEggs(prev => prev.filter(e => e.id !== id))
   }
 
-  return { eggs, loading, addEgg, deleteEgg }
+  return { eggs, loading, addEgg, deleteEgg, refresh }
 }
