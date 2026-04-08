@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useChickens } from '../hooks/useChickens'
 import { useEggs } from '../hooks/useEggs'
 import { uploadPhoto } from '../hooks/usePhotoUpload'
-import { ChevronLeft, Egg, Feather, Pill, Plus, X, Camera, Bird } from 'lucide-react'
+import { PhotoPicker } from '../components/PhotoPicker'
+import { ChevronLeft, Egg, Feather, Pill, Plus, X } from 'lucide-react'
 
 type Tab = 'eier' | 'mauser' | 'medikation'
 
@@ -15,16 +16,13 @@ export function ChickenDetail() {
   const { eggs, addEgg, deleteEgg } = useEggs(numericId)
   const [activeTab, setActiveTab] = useState<Tab>('eier')
   const [uploading, setUploading] = useState(false)
-  const photoInputRef = useRef<HTMLInputElement>(null)
 
   const chicken = chickens.find(c => c.id === numericId)
   if (!chicken) return (
     <div className="p-4 text-center text-gray-400 pt-20">Huhn nicht gefunden.</div>
   )
 
-  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const handlePhotoSelect = async (file: File) => {
     setUploading(true)
     try {
       const photoUrl = await uploadPhoto(file)
@@ -54,32 +52,18 @@ export function ChickenDetail() {
           <ChevronLeft className="w-6 h-6" />
         </button>
 
-        {/* Photo (tappable to change) */}
-        <button
-          onClick={() => photoInputRef.current?.click()}
-          className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center overflow-hidden shrink-0 relative"
-          aria-label="Foto ändern"
-          disabled={uploading}
-        >
-          {uploading ? (
+        {/* Photo (tappable to change via PhotoPicker) */}
+        {uploading ? (
+          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
             <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-          ) : chicken.photoUrl ? (
-            <img src={chicken.photoUrl} alt={chicken.name} className="w-full h-full object-cover" />
-          ) : (
-            <Bird className="w-5 h-5 text-green-600" />
-          )}
-          <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-            <Camera className="w-2.5 h-2.5 text-white" />
           </div>
-        </button>
-        <input
-          ref={photoInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handlePhotoChange}
-          className="hidden"
-        />
+        ) : (
+          <PhotoPicker
+            currentUrl={chicken.photoUrl}
+            onSelect={handlePhotoSelect}
+            size="sm"
+          />
+        )}
 
         <div className="min-w-0 flex-1">
           <h1 className="font-bold text-gray-900 text-lg truncate">{chicken.name}</h1>
@@ -88,7 +72,7 @@ export function ChickenDetail() {
 
         <button
           onClick={() => addEgg(chicken.id)}
-          className="bg-green-500 text-white text-sm font-medium px-4 py-2 rounded-full active:scale-95 transition-transform flex items-center gap-1 shrink-0"
+          className="bg-green-500 text-white text-sm font-semibold px-4 py-2.5 rounded-full active:scale-95 transition-transform flex items-center gap-1.5 shrink-0 shadow-sm"
         >
           <Plus className="w-4 h-4" /> Ei
         </button>
@@ -117,16 +101,20 @@ export function ChickenDetail() {
         {activeTab === 'eier' && (
           eggs.length === 0
             ? <div className="text-center text-gray-400 pt-12">
-                <Egg className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Egg className="w-7 h-7 text-amber-300" />
+                </div>
                 <p className="text-sm">Noch keine Eier erfasst.</p>
               </div>
             : (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
+              <div className="space-y-2">
                 {eggs.map(egg => (
-                  <div key={egg.id} className="flex items-center gap-3 px-4 py-3">
-                    <Egg className="w-5 h-5 text-amber-400 shrink-0" />
+                  <div key={egg.id} className="bg-white rounded-xl border border-gray-100 shadow-sm flex items-center gap-3 px-4 py-3">
+                    <div className="w-8 h-8 bg-amber-50 rounded-full flex items-center justify-center shrink-0">
+                      <Egg className="w-4 h-4 text-amber-400" />
+                    </div>
                     <span className="flex-1 text-sm text-gray-700">
-                      {new Date(egg.laidAt).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      {new Date(egg.laidAt).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
                     </span>
                     <button
                       onClick={() => deleteEgg(egg.id)}
@@ -143,14 +131,18 @@ export function ChickenDetail() {
 
         {activeTab === 'mauser' && (
           <div className="text-center text-gray-400 pt-12">
-            <Feather className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+            <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Feather className="w-7 h-7 text-gray-300" />
+            </div>
             <p className="text-sm">Mauser-Erfassung kommt bald</p>
           </div>
         )}
 
         {activeTab === 'medikation' && (
           <div className="text-center text-gray-400 pt-12">
-            <Pill className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+            <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Pill className="w-7 h-7 text-gray-300" />
+            </div>
             <p className="text-sm">Medikations-Erfassung kommt bald</p>
           </div>
         )}
