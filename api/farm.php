@@ -47,7 +47,6 @@ if ($method === 'GET' && !$action) {
 
 // POST /api/farm.php?action=create — create a new farm
 if ($method === 'POST' && $action === 'create') {
-    // Check if user already has a farm
     if ($user['farm_id']) {
         jsonResponse(['error' => 'Du bist bereits Mitglied einer Farm'], 400);
     }
@@ -83,7 +82,6 @@ if ($method === 'POST' && $action === 'join') {
 
     if (!$code) jsonResponse(['error' => 'Code ist Pflicht'], 400);
 
-    // Check if user already has a farm
     if ($user['farm_id']) {
         jsonResponse(['error' => 'Du bist bereits Mitglied einer Farm. Verlasse zuerst deine aktuelle Farm.'], 400);
     }
@@ -96,7 +94,6 @@ if ($method === 'POST' && $action === 'join') {
         jsonResponse(['error' => 'Ungültiger Einladungscode'], 404);
     }
 
-    // Check if already member
     $stmt = $pdo->prepare('SELECT id FROM farm_members WHERE farm_id = ? AND user_id = ?');
     $stmt->execute([$farm['id'], $user['id']]);
     if ($stmt->fetch()) {
@@ -107,8 +104,8 @@ if ($method === 'POST' && $action === 'join') {
     $stmt->execute([$farm['id'], $user['id'], 'member']);
 
     // Move user's existing chickens and eggs to the farm
-    $pdo->prepare('UPDATE chickens SET farm_id = ? WHERE user_id = ? AND (farm_id IS NULL)')->execute([$farm['id'], $user['id']]);
-    $pdo->prepare('UPDATE eggs SET farm_id = ? WHERE user_id = ? AND (farm_id IS NULL)')->execute([$farm['id'], $user['id']]);
+    $pdo->prepare('UPDATE chickens SET farm_id = ? WHERE user_id = ? AND farm_id IS NULL')->execute([$farm['id'], $user['id']]);
+    $pdo->prepare('UPDATE eggs SET farm_id = ? WHERE user_id = ? AND farm_id IS NULL')->execute([$farm['id'], $user['id']]);
 
     jsonResponse([
         'farm' => [
@@ -124,28 +121,83 @@ if ($method === 'POST' && $action === 'leave') {
         jsonResponse(['error' => 'Du bist in keiner Farm'], 400);
     }
 
-    // Owners can't leave (must delete or transfer)
+    $farmId = $user['farm_id'];
+
     if ($user['farm_role'] === 'owner') {
-        // Check if there are other members
+        // Count other members
         $stmt = $pdo->prepare('SELECT COUNT(*) as cnt FROM farm_members WHERE farm_id = ? AND user_id != ?');
-        $stmt->execute([$user['farm_id'], $user['id']]);
-        $count = (int)$stmt->fetch()['cnt'];
+        $stmt->execute([$farmId, $user['id']]);
+        $otherCount = (int)$stmt->fetch()['cnt'];
 
-        if ($count > 0) {
-            jsonResponse(['error' => 'Als Besitzer kannst du die Farm nicht verlassen, solange andere Mitglieder da sind.'], 400);
+        if ($otherCount > 0) {
+            jsonResponse(['error' => 'Übertrage zuerst die Admin-Rechte an ein anderes Mitglied.'], 400);
         }
-    }
 
-    $stmt = $pdo->prepare('DELETE FROM farm_members WHERE farm_id = ? AND user_id = ?');
-    $stmt->execute([$user['farm_id'], $user['id']]);
+        // Sole owner: unassign chickens/eggs, delete farm
+        $pdo->prepare('UPDATE chickens SET farm_id = NULL WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $user['id']]);
+        $pdo->prepare('UPDATE eggs SET farm_id = NULL WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $user['id']]);
+        $pdo->prepare('DELETE FROM farm_members WHERE farm_id = ?')->execute([$farmId]);
+        $pdo->prepare('DELETE FROM farms WHERE id = ?')->execute([$farmId]);
+    } else {
+        // Regular member: unassign own chickens/eggs, leave
+        $pdo->prepare('UPDATE chickens SET farm_id = NULL WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $user['id']]);
+        $pdo->prepare('UPDATE eggs SET farm_id = NULL WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $user['id']]);
+        $pdo->prepare('DELETE FROM farm_members WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $user['id']]);
+    }
 
     jsonResponse(['ok' => true]);
 }
 
-// PUT /api/farm.php — update farm name
+// POST /api/farm.php?action=transfer — transfer admin to another member (owner only)
+if ($method === 'POST' && $action === 'transfer') {
+    if (!$user['farm_id'] || $user['farm_role'] !== 'owner') {
+        jsonResponse(['error' => 'Nur der Admin kann Rechte übertragen'], 403);
+    }
+
+    $data = jsonInput();
+    $targetUserId = (int)($data['userId'] ?? 0);
+    if (!$targetUserId) jsonResponse(['error' => 'userId ist Pflicht'], 400);
+
+    // Verify target is a member of this farm
+    $stmt = $pdo->prepare('SELECT id FROM farm_members WHERE farm_id = ? AND user_id = ?');
+    $stmt->execute([$user['farm_id'], $targetUserId]);
+    if (!$stmt->fetch()) jsonResponse(['error' => 'Benutzer ist kein Mitglied dieser Farm'], 404);
+
+    // Swap roles
+    $pdo->prepare('UPDATE farm_members SET role = ? WHERE farm_id = ? AND user_id = ?')->execute(['member', $user['farm_id'], $user['id']]);
+    $pdo->prepare('UPDATE farm_members SET role = ? WHERE farm_id = ? AND user_id = ?')->execute(['owner', $user['farm_id'], $targetUserId]);
+
+    jsonResponse(['ok' => true]);
+}
+
+// POST /api/farm.php?action=remove — remove a member (owner only)
+if ($method === 'POST' && $action === 'remove') {
+    if (!$user['farm_id'] || $user['farm_role'] !== 'owner') {
+        jsonResponse(['error' => 'Nur der Admin kann Mitglieder entfernen'], 403);
+    }
+
+    $data = jsonInput();
+    $targetUserId = (int)($data['userId'] ?? 0);
+    if (!$targetUserId) jsonResponse(['error' => 'userId ist Pflicht'], 400);
+
+    if ($targetUserId === (int)$user['id']) {
+        jsonResponse(['error' => 'Du kannst dich nicht selbst entfernen'], 400);
+    }
+
+    $farmId = $user['farm_id'];
+
+    // Unassign their chickens/eggs
+    $pdo->prepare('UPDATE chickens SET farm_id = NULL WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $targetUserId]);
+    $pdo->prepare('UPDATE eggs SET farm_id = NULL WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $targetUserId]);
+    $pdo->prepare('DELETE FROM farm_members WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $targetUserId]);
+
+    jsonResponse(['ok' => true]);
+}
+
+// PUT /api/farm.php — update farm name (owner only)
 if ($method === 'PUT') {
     if (!$user['farm_id'] || $user['farm_role'] !== 'owner') {
-        jsonResponse(['error' => 'Nur der Besitzer kann die Farm bearbeiten'], 403);
+        jsonResponse(['error' => 'Nur der Admin kann die Farm bearbeiten'], 403);
     }
 
     $data = jsonInput();
@@ -158,10 +210,10 @@ if ($method === 'PUT') {
     jsonResponse(['ok' => true]);
 }
 
-// POST /api/farm.php?action=new-code — regenerate invite code
+// POST /api/farm.php?action=new-code — regenerate invite code (owner only)
 if ($method === 'POST' && $action === 'new-code') {
     if (!$user['farm_id'] || $user['farm_role'] !== 'owner') {
-        jsonResponse(['error' => 'Nur der Besitzer kann den Code erneuern'], 403);
+        jsonResponse(['error' => 'Nur der Admin kann den Code erneuern'], 403);
     }
 
     $newCode = strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
