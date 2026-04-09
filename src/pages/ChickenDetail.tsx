@@ -4,7 +4,7 @@ import { useChickens } from '../hooks/useChickens'
 import { useEggs } from '../hooks/useEggs'
 import { uploadPhoto } from '../hooks/usePhotoUpload'
 import { PhotoPicker } from '../components/PhotoPicker'
-import { ChevronLeft, Egg, Feather, Pill, Plus, Pencil, Check, Trash2, Camera } from 'lucide-react'
+import { ChevronLeft, Egg, Feather, Pill, Plus, Pencil, Check, Trash2, Camera, CalendarDays, Minus } from 'lucide-react'
 
 type Tab = 'eier' | 'mauser' | 'medikation'
 
@@ -24,6 +24,10 @@ export function ChickenDetail() {
   const [editNotes, setEditNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showEggModal, setShowEggModal] = useState(false)
+  const [eggDate, setEggDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [eggCount, setEggCount] = useState(1)
+  const [addingEggs, setAddingEggs] = useState(false)
 
   const chicken = chickens.find(c => c.id === numericId)
   if (!chicken) return (
@@ -57,6 +61,25 @@ export function ChickenDetail() {
   const handleDelete = async () => {
     await deleteChicken(chicken.id)
     navigate(-1)
+  }
+
+  const handleAddEggs = async () => {
+    setAddingEggs(true)
+    try {
+      const date = new Date(eggDate)
+      for (let i = 0; i < eggCount; i++) {
+        // Spread eggs across the day (8:00 + i minutes) so they sort nicely
+        const ts = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 8, i).getTime()
+        await addEgg(chicken.id, ts)
+      }
+      setShowEggModal(false)
+      setEggCount(1)
+      setEggDate(new Date().toISOString().slice(0, 10))
+    } catch (err) {
+      console.error('Failed to add eggs:', err)
+    } finally {
+      setAddingEggs(false)
+    }
   }
 
   const handlePhotoSelect = async (file: File) => {
@@ -149,7 +172,7 @@ export function ChickenDetail() {
               <Pencil className="w-4 h-4" />
             </button>
             <button
-              onClick={() => addEgg(chicken.id)}
+              onClick={() => { setEggDate(new Date().toISOString().slice(0, 10)); setEggCount(1); setShowEggModal(true) }}
               className="bg-green-500 text-white text-sm font-semibold px-4 py-2.5 rounded-full active:scale-95 transition-transform flex items-center gap-1.5 shadow-sm"
             >
               <Plus className="w-4 h-4" /> Ei
@@ -348,6 +371,72 @@ export function ChickenDetail() {
           </div>
         )}
       </div>
+
+      {/* Add egg modal */}
+      {showEggModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => setShowEggModal(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-xl safe-area-bottom" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Egg className="w-5 h-5 text-amber-400" /> Ei eintragen
+            </h3>
+
+            {/* Date picker */}
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">
+                <CalendarDays className="w-3.5 h-3.5 inline mr-1" />Datum
+              </label>
+              <input
+                type="date"
+                value={eggDate}
+                onChange={e => setEggDate(e.target.value)}
+                max={new Date().toISOString().slice(0, 10)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
+              />
+            </div>
+
+            {/* Count */}
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Anzahl</label>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setEggCount(c => Math.max(1, c - 1))}
+                  disabled={eggCount <= 1}
+                  className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center text-gray-600 active:scale-95 transition-transform disabled:opacity-30"
+                >
+                  <Minus className="w-5 h-5" />
+                </button>
+                <span className="text-3xl font-bold text-gray-900 w-12 text-center">{eggCount}</span>
+                <button
+                  onClick={() => setEggCount(c => c + 1)}
+                  className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center text-gray-600 active:scale-95 transition-transform"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setShowEggModal(false)}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleAddEggs}
+                disabled={addingEggs}
+                className="flex-1 py-3 rounded-xl bg-green-500 text-white text-sm font-semibold active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {addingEggs ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>{eggCount > 1 ? `${eggCount} Eier` : '1 Ei'} eintragen</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
