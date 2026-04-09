@@ -4,7 +4,7 @@ import { useChickens } from '../hooks/useChickens'
 import { useEggs } from '../hooks/useEggs'
 import { uploadPhoto } from '../hooks/usePhotoUpload'
 import { PhotoPicker } from '../components/PhotoPicker'
-import { ChevronLeft, Egg, Feather, Pill, Plus, X } from 'lucide-react'
+import { ChevronLeft, Egg, Feather, Pill, Plus, X, Pencil, Check, Trash2 } from 'lucide-react'
 
 type Tab = 'eier' | 'mauser' | 'medikation'
 
@@ -12,15 +12,50 @@ export function ChickenDetail() {
   const { id } = useParams<{ id: string }>()
   const numericId = Number(id)
   const navigate = useNavigate()
-  const { chickens, updateChicken } = useChickens()
+  const { chickens, updateChicken, deleteChicken } = useChickens()
   const { eggs, addEgg, deleteEgg } = useEggs(numericId)
   const [activeTab, setActiveTab] = useState<Tab>('eier')
   const [uploading, setUploading] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editBreed, setEditBreed] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const chicken = chickens.find(c => c.id === numericId)
   if (!chicken) return (
     <div className="p-4 text-center text-gray-400 pt-20">Huhn nicht gefunden.</div>
   )
+
+  const startEditing = () => {
+    setEditName(chicken.name)
+    setEditBreed(chicken.breed ?? '')
+    setEditNotes(chicken.notes ?? '')
+    setEditing(true)
+  }
+
+  const saveEdits = async () => {
+    if (!editName.trim()) return
+    setSaving(true)
+    try {
+      await updateChicken(chicken.id, {
+        name: editName.trim(),
+        breed: editBreed.trim() || null,
+        notes: editNotes.trim() || null,
+      })
+      setEditing(false)
+    } catch (err) {
+      console.error('Update failed:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    await deleteChicken(chicken.id)
+    navigate(-1)
+  }
 
   const handlePhotoSelect = async (file: File) => {
     setUploading(true)
@@ -45,7 +80,7 @@ export function ChickenDetail() {
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => { if (editing) setEditing(false); else navigate(-1) }}
           className="text-green-600 p-1 min-w-11 min-h-11 flex items-center justify-center"
           aria-label="Zurück"
         >
@@ -66,17 +101,105 @@ export function ChickenDetail() {
         )}
 
         <div className="min-w-0 flex-1">
-          <h1 className="font-bold text-gray-900 text-lg truncate">{chicken.name}</h1>
-          {chicken.breed && <p className="text-xs text-gray-400 truncate">{chicken.breed}</p>}
+          {editing ? (
+            <input
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              className="font-bold text-gray-900 text-lg w-full bg-gray-50 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-green-400"
+              autoFocus
+            />
+          ) : (
+            <>
+              <h1 className="font-bold text-gray-900 text-lg truncate">{chicken.name}</h1>
+              {chicken.breed && <p className="text-xs text-gray-400 truncate">{chicken.breed}</p>}
+            </>
+          )}
         </div>
 
-        <button
-          onClick={() => addEgg(chicken.id)}
-          className="bg-green-500 text-white text-sm font-semibold px-4 py-2.5 rounded-full active:scale-95 transition-transform flex items-center gap-1.5 shrink-0 shadow-sm"
-        >
-          <Plus className="w-4 h-4" /> Ei
-        </button>
+        {editing ? (
+          <button
+            onClick={saveEdits}
+            disabled={saving || !editName.trim()}
+            className="bg-green-500 text-white p-2.5 rounded-full active:scale-95 transition-transform disabled:opacity-40 shrink-0 shadow-sm"
+            aria-label="Speichern"
+          >
+            <Check className="w-5 h-5" />
+          </button>
+        ) : (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={startEditing}
+              className="text-gray-400 p-2 min-w-11 min-h-11 flex items-center justify-center active:text-green-600"
+              aria-label="Bearbeiten"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => addEgg(chicken.id)}
+              className="bg-green-500 text-white text-sm font-semibold px-4 py-2.5 rounded-full active:scale-95 transition-transform flex items-center gap-1.5 shadow-sm"
+            >
+              <Plus className="w-4 h-4" /> Ei
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Edit form (breed, notes, delete) */}
+      {editing && (
+        <div className="bg-white border-b border-gray-100 px-4 py-3 space-y-3">
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Rasse</label>
+            <input
+              value={editBreed}
+              onChange={e => setEditBreed(e.target.value)}
+              placeholder="z.B. Sussex, Araucana..."
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Notizen</label>
+            <textarea
+              value={editNotes}
+              onChange={e => setEditNotes(e.target.value)}
+              placeholder="Besonderheiten, Charakter..."
+              rows={2}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400 resize-none"
+            />
+          </div>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="w-full py-2.5 rounded-xl border border-red-200 text-red-500 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform"
+          >
+            <Trash2 className="w-4 h-4" /> Huhn löschen
+          </button>
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900">Huhn löschen?</h3>
+            <p className="text-sm text-gray-500">
+              <strong>{chicken.name}</strong> und alle zugehörigen Eier werden unwiderruflich gelöscht.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold active:scale-95 transition-transform"
+              >
+                Löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex border-b border-gray-100 bg-white">
