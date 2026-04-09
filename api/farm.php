@@ -61,6 +61,10 @@ if ($method === 'POST' && $action === 'create') {
     $stmt = $pdo->prepare('INSERT INTO farm_members (farm_id, user_id, role) VALUES (?, ?, ?)');
     $stmt->execute([$farmId, $user['id'], 'owner']);
 
+    // Move existing chickens and eggs to the new farm
+    $pdo->prepare('UPDATE chickens SET farm_id = ? WHERE user_id = ? AND farm_id IS NULL')->execute([$farmId, $user['id']]);
+    $pdo->prepare('UPDATE eggs SET farm_id = ? WHERE user_id = ? AND farm_id IS NULL')->execute([$farmId, $user['id']]);
+
     jsonResponse([
         'farm' => [
             'id' => $farmId,
