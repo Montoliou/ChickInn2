@@ -43,23 +43,20 @@
 
 ---
 
-## Offen
-
 ### v1.3 — Farm-Leave Refactor + Gesundheit v2
-> Priorität: HOCH — aktiv in Arbeit
+- [x] **Farm-Leave: Daten bleiben in Farm**
+  - Beim Verlassen bleiben Hühner/Eier in der Farm
+  - Farm bleibt unter ihrem Invite-Code bestehen, User kann per Code wieder beitreten
+  - Nur der alleinige Owner bekommt beim Auflösen seine Daten zurück
 
-- [ ] **Farm-Leave: Daten bleiben in Farm**
-  - Beim Verlassen sollen Hühner/Eier IN der Farm bleiben (nicht dem User zurückgegeben)
-  - Farm bleibt unter ihrem Invite-Code bestehen
-  - User kann per Code jederzeit wieder beitreten
-  - Nur der alleinige Owner der Farm bekommt seine Daten zurück (Farm wird aufgelöst)
-  - **Dateien**: `api/farm.php` (leave + remove Actions), `src/pages/SettingsPage.tsx` (Dialog-Texte)
+- [x] **Gesundheitsscreen: Nur Abweichungen erfassen**
+  - 12 Symptom-Chips statt 8 täglicher "alles OK"-Checkboxen
+  - Nur antippen wenn etwas nicht stimmt, Freitext-Notiz
+  - Verlauf zeigt nur Tage mit gemeldeten Auffälligkeiten
 
-- [ ] **Gesundheitsscreen: Nur Abweichungen erfassen**
-  - Aktuell: 8 Checkboxen die man jeden Tag antippen muss ("frisst normal" etc.) — ineffizient
-  - Neu: Nur Abweichungen/Auffälligkeiten loggen (z.B. "Durchfall", "weiches Ei", "frisst nicht")
-  - Idee: Schnell-Buttons für häufige Symptome, Freitext, Verlauf zeigt nur auffällige Tage
-  - **Dateien**: `src/pages/ChickenDetail.tsx` (Gesundheit-Tab), `api/health.php`
+---
+
+## Offen
 
 ### v1.4 — Medikation + Mauser
 - [ ] Medikation erfassen: Name, Start/Ende, Notizen
