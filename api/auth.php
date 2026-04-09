@@ -88,6 +88,9 @@ if ($method === 'GET' && $action === 'me') {
             'id' => (int)$user['id'],
             'email' => $user['email'],
             'displayName' => $user['display_name'],
+            'farmId' => $user['farm_id'] ? (int)$user['farm_id'] : null,
+            'farmName' => $user['farm_name'] ?? null,
+            'farmRole' => $user['farm_role'] ?? null,
         ]
     ]);
 }

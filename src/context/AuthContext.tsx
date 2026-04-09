@@ -6,6 +6,9 @@ export interface AppUser {
   id: number
   email: string
   displayName: string
+  farmId?: number | null
+  farmName?: string | null
+  farmRole?: string | null
 }
 
 interface AuthContextValue {
@@ -14,13 +17,35 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, displayName: string) => Promise<void>
   logout: () => Promise<void>
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+function mapUser(raw: Record<string, unknown>): AppUser {
+  return {
+    id: raw.id as number,
+    email: raw.email as string,
+    displayName: raw.displayName as string,
+    farmId: (raw.farmId as number) ?? null,
+    farmName: (raw.farmName as string) ?? null,
+    farmRole: (raw.farmRole as string) ?? null,
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await apiFetch<{ user: Record<string, unknown> }>('auth.php?action=me')
+      setUser(mapUser(res.user))
+    } catch {
+      setToken(null)
+      setUser(null)
+    }
+  }, [])
 
   // Check existing token on mount
   useEffect(() => {
@@ -29,30 +54,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
       return
     }
-
-    apiFetch<{ user: AppUser }>('auth.php?action=me')
-      .then(res => setUser(res.user))
-      .catch(() => setToken(null))
-      .finally(() => setLoading(false))
-  }, [])
+    refreshUser().finally(() => setLoading(false))
+  }, [refreshUser])
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await apiFetch<{ token: string; user: AppUser }>(
+    const res = await apiFetch<{ token: string; user: Record<string, unknown> }>(
       'auth.php?action=login',
       { method: 'POST', body: JSON.stringify({ email, password }) }
     )
     setToken(res.token)
-    setUser(res.user)
+    setUser(mapUser(res.user))
   }, [])
 
   const register = useCallback(async (email: string, password: string, displayName: string) => {
-    const res = await apiFetch<{ token: string; user: AppUser }>(
+    const res = await apiFetch<{ token: string; user: Record<string, unknown> }>(
       'auth.php?action=register',
       { method: 'POST', body: JSON.stringify({ email, password, displayName }) }
     )
     setToken(res.token)
-    setUser(res.user)
-  }, [])
+    // Auto-create a farm for new users
+    try {
+      await apiFetch('farm.php?action=create', {
+        method: 'POST',
+        body: JSON.stringify({ name: `${displayName}s Farm` }),
+      })
+    } catch { /* ok if it fails, user can create later */ }
+    // Refresh to get farm data
+    await refreshUser()
+  }, [refreshUser])
 
   const logout = useCallback(async () => {
     try {
@@ -63,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

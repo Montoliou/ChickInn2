@@ -4,16 +4,23 @@ require_once __DIR__ . '/config.php';
 $user = requireAuth($pdo);
 $method = $_SERVER['REQUEST_METHOD'];
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
+$farmId = $user['farm_id'] ?? null;
 
-// GET /api/chickens.php — list all
+// GET /api/chickens.php — list all (by farm or user)
 if ($method === 'GET' && !$id) {
-    $stmt = $pdo->prepare('SELECT * FROM chickens WHERE user_id = ? ORDER BY created_at ASC');
-    $stmt->execute([$user['id']]);
+    if ($farmId) {
+        $stmt = $pdo->prepare('SELECT * FROM chickens WHERE farm_id = ? ORDER BY created_at ASC');
+        $stmt->execute([$farmId]);
+    } else {
+        $stmt = $pdo->prepare('SELECT * FROM chickens WHERE user_id = ? AND farm_id IS NULL ORDER BY created_at ASC');
+        $stmt->execute([$user['id']]);
+    }
     $chickens = $stmt->fetchAll();
 
     jsonResponse(array_map(fn($c) => [
         'id' => (int)$c['id'],
         'userId' => (int)$c['user_id'],
+        'farmId' => $c['farm_id'] ? (int)$c['farm_id'] : null,
         'name' => $c['name'],
         'breed' => $c['breed'],
         'notes' => $c['notes'],
@@ -24,14 +31,20 @@ if ($method === 'GET' && !$id) {
 
 // GET /api/chickens.php?id=1 — single
 if ($method === 'GET' && $id) {
-    $stmt = $pdo->prepare('SELECT * FROM chickens WHERE id = ? AND user_id = ?');
-    $stmt->execute([$id, $user['id']]);
+    if ($farmId) {
+        $stmt = $pdo->prepare('SELECT * FROM chickens WHERE id = ? AND farm_id = ?');
+        $stmt->execute([$id, $farmId]);
+    } else {
+        $stmt = $pdo->prepare('SELECT * FROM chickens WHERE id = ? AND user_id = ?');
+        $stmt->execute([$id, $user['id']]);
+    }
     $c = $stmt->fetch();
     if (!$c) jsonResponse(['error' => 'Not found'], 404);
 
     jsonResponse([
         'id' => (int)$c['id'],
         'userId' => (int)$c['user_id'],
+        'farmId' => $c['farm_id'] ? (int)$c['farm_id'] : null,
         'name' => $c['name'],
         'breed' => $c['breed'],
         'notes' => $c['notes'],
@@ -47,12 +60,13 @@ if ($method === 'POST') {
     if (!$name) jsonResponse(['error' => 'Name ist Pflicht'], 400);
 
     $stmt = $pdo->prepare('
-        INSERT INTO chickens (user_id, name, breed, notes, photo_url, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO chickens (user_id, farm_id, name, breed, notes, photo_url, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     ');
     $now = (int)(microtime(true) * 1000);
     $stmt->execute([
         $user['id'],
+        $farmId,
         $name,
         trim($data['breed'] ?? '') ?: null,
         trim($data['notes'] ?? '') ?: null,
@@ -63,6 +77,7 @@ if ($method === 'POST') {
     jsonResponse([
         'id' => (int)$pdo->lastInsertId(),
         'userId' => (int)$user['id'],
+        'farmId' => $farmId ? (int)$farmId : null,
         'name' => $name,
         'breed' => trim($data['breed'] ?? '') ?: null,
         'notes' => trim($data['notes'] ?? '') ?: null,
@@ -73,9 +88,14 @@ if ($method === 'POST') {
 
 // PUT /api/chickens.php?id=1 — update
 if ($method === 'PUT' && $id) {
-    // Verify ownership
-    $stmt = $pdo->prepare('SELECT id FROM chickens WHERE id = ? AND user_id = ?');
-    $stmt->execute([$id, $user['id']]);
+    // Verify access (farm or user)
+    if ($farmId) {
+        $stmt = $pdo->prepare('SELECT id FROM chickens WHERE id = ? AND farm_id = ?');
+        $stmt->execute([$id, $farmId]);
+    } else {
+        $stmt = $pdo->prepare('SELECT id FROM chickens WHERE id = ? AND user_id = ?');
+        $stmt->execute([$id, $user['id']]);
+    }
     if (!$stmt->fetch()) jsonResponse(['error' => 'Not found'], 404);
 
     $data = jsonInput();
@@ -92,8 +112,7 @@ if ($method === 'PUT' && $id) {
     if (empty($fields)) jsonResponse(['error' => 'No fields to update'], 400);
 
     $values[] = $id;
-    $values[] = $user['id'];
-    $stmt = $pdo->prepare('UPDATE chickens SET ' . implode(', ', $fields) . ' WHERE id = ? AND user_id = ?');
+    $stmt = $pdo->prepare('UPDATE chickens SET ' . implode(', ', $fields) . ' WHERE id = ?');
     $stmt->execute($values);
 
     // Return updated chicken
@@ -104,6 +123,7 @@ if ($method === 'PUT' && $id) {
     jsonResponse([
         'id' => (int)$c['id'],
         'userId' => (int)$c['user_id'],
+        'farmId' => $c['farm_id'] ? (int)$c['farm_id'] : null,
         'name' => $c['name'],
         'breed' => $c['breed'],
         'notes' => $c['notes'],
@@ -114,9 +134,13 @@ if ($method === 'PUT' && $id) {
 
 // DELETE /api/chickens.php?id=1
 if ($method === 'DELETE' && $id) {
-    // Delete associated photo file
-    $stmt = $pdo->prepare('SELECT photo_url FROM chickens WHERE id = ? AND user_id = ?');
-    $stmt->execute([$id, $user['id']]);
+    if ($farmId) {
+        $stmt = $pdo->prepare('SELECT photo_url FROM chickens WHERE id = ? AND farm_id = ?');
+        $stmt->execute([$id, $farmId]);
+    } else {
+        $stmt = $pdo->prepare('SELECT photo_url FROM chickens WHERE id = ? AND user_id = ?');
+        $stmt->execute([$id, $user['id']]);
+    }
     $c = $stmt->fetch();
     if (!$c) jsonResponse(['error' => 'Not found'], 404);
 
@@ -125,8 +149,8 @@ if ($method === 'DELETE' && $id) {
         if (file_exists($file)) unlink($file);
     }
 
-    $stmt = $pdo->prepare('DELETE FROM chickens WHERE id = ? AND user_id = ?');
-    $stmt->execute([$id, $user['id']]);
+    $stmt = $pdo->prepare('DELETE FROM chickens WHERE id = ?');
+    $stmt->execute([$id]);
 
     jsonResponse(['ok' => true]);
 }
