@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useChickens } from '../hooks/useChickens'
+import { useEggs } from '../hooks/useEggs'
 import { uploadPhoto } from '../hooks/usePhotoUpload'
 import { PhotoPicker } from '../components/PhotoPicker'
-import { Plus, X, Bird, ChevronRight, Upload, FileSpreadsheet, Check } from 'lucide-react'
+import { Plus, X, Bird, ChevronRight, Upload, FileSpreadsheet, Check, Egg, CalendarDays } from 'lucide-react'
 
-interface CsvRow { name: string; breed: string; notes: string }
+interface CsvRow { name: string; eggs: number; breed: string }
 
 function parseCsv(text: string): CsvRow[] {
   const lines = text.split(/\r?\n/).filter(l => l.trim())
@@ -17,23 +18,30 @@ function parseCsv(text: string): CsvRow[] {
 
   // Map columns by name
   const nameIdx = headers.findIndex(h => ['name', 'huhn', 'chicken'].includes(h))
+  const eggsIdx = headers.findIndex(h => ['eier', 'eggs', 'anzahl', 'count'].includes(h))
   const breedIdx = headers.findIndex(h => ['rasse', 'breed', 'race'].includes(h))
-  const notesIdx = headers.findIndex(h => ['notiz', 'notizen', 'notes', 'bemerkung'].includes(h))
 
-  if (nameIdx === -1) return []
+  // If no headers match, try positional: first col = name, second = eggs
+  if (nameIdx === -1) {
+    return lines.slice(1).map(line => {
+      const cols = line.split(sep).map(c => c.trim().replace(/^["']|["']$/g, ''))
+      return { name: cols[0] ?? '', eggs: parseInt(cols[1] ?? '0') || 0, breed: cols[2] ?? '' }
+    }).filter(r => r.name)
+  }
 
   return lines.slice(1).map(line => {
     const cols = line.split(sep).map(c => c.trim().replace(/^["']|["']$/g, ''))
     return {
       name: cols[nameIdx] ?? '',
+      eggs: eggsIdx >= 0 ? (parseInt(cols[eggsIdx]) || 0) : 0,
       breed: breedIdx >= 0 ? (cols[breedIdx] ?? '') : '',
-      notes: notesIdx >= 0 ? (cols[notesIdx] ?? '') : '',
     }
   }).filter(r => r.name)
 }
 
 export function ChickensPage() {
   const { chickens, addChicken, deleteChicken } = useChickens()
+  const { addEgg } = useEggs()
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [breed, setBreed] = useState('')
@@ -45,6 +53,11 @@ export function ChickensPage() {
   const [showImport, setShowImport] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importDone, setImportDone] = useState(0)
+  const [importStatus, setImportStatus] = useState('')
+  const [importFrom, setImportFrom] = useState(() => {
+    const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d.toISOString().slice(0, 10)
+  })
+  const [importTo, setImportTo] = useState(() => new Date().toISOString().slice(0, 10))
   const csvInputRef = useRef<HTMLInputElement>(null)
 
   const handleCsvFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,20 +79,41 @@ export function ChickensPage() {
   const handleImport = async () => {
     setImporting(true)
     setImportDone(0)
+    setImportStatus('')
+
+    const fromDate = new Date(importFrom)
+    const toDate = new Date(importTo)
+
     for (let i = 0; i < csvRows.length; i++) {
       const row = csvRows[i]
       try {
-        await addChicken({
-          name: row.name,
-          breed: row.breed || undefined,
-          notes: row.notes || undefined,
-        })
+        // Check if chicken already exists
+        let chicken = chickens.find(c => c.name.toLowerCase() === row.name.toLowerCase())
+        if (!chicken) {
+          setImportStatus(`Lege "${row.name}" an...`)
+          chicken = await addChicken({ name: row.name, breed: row.breed || undefined })
+        }
+
+        // Add eggs spread across the date range
+        if (row.eggs > 0 && chicken) {
+          const totalDays = Math.max(1, Math.round((toDate.getTime() - fromDate.getTime()) / 86400000))
+          for (let e = 0; e < row.eggs; e++) {
+            setImportStatus(`${row.name}: Ei ${e + 1}/${row.eggs}`)
+            // Spread eggs evenly across the period
+            const dayOffset = Math.floor((e / row.eggs) * totalDays)
+            const eggDate = new Date(fromDate)
+            eggDate.setDate(eggDate.getDate() + dayOffset)
+            eggDate.setHours(8, Math.floor(Math.random() * 60))
+            await addEgg(chicken.id, eggDate.getTime())
+          }
+        }
         setImportDone(i + 1)
       } catch (err) {
         console.error(`Import failed for ${row.name}:`, err)
       }
     }
     setImporting(false)
+    setImportStatus('')
     setShowImport(false)
     setCsvRows([])
   }
@@ -233,8 +267,35 @@ export function ChickensPage() {
               <FileSpreadsheet className="w-5 h-5 text-green-500" />
               CSV Import
             </h3>
+
+            {/* Date range for egg distribution */}
+            {csvRows.some(r => r.eggs > 0) && (
+              <div className="bg-amber-50 rounded-xl p-3 space-y-2">
+                <p className="text-xs font-medium text-amber-700 flex items-center gap-1.5">
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  Zeitraum für historische Eier
+                </p>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-xs text-amber-600">Von</label>
+                    <input type="date" value={importFrom} onChange={e => setImportFrom(e.target.value)}
+                      className="w-full border border-amber-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-amber-400 bg-white" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-amber-600">Bis</label>
+                    <input type="date" value={importTo} onChange={e => setImportTo(e.target.value)}
+                      max={new Date().toISOString().slice(0, 10)}
+                      className="w-full border border-amber-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-amber-400 bg-white" />
+                  </div>
+                </div>
+                <p className="text-xs text-amber-500">
+                  Eier werden gleichmäßig über diesen Zeitraum verteilt.
+                </p>
+              </div>
+            )}
+
             <p className="text-sm text-gray-500">
-              {csvRows.length} Hühner gefunden. Vorschau:
+              {csvRows.length} Hühner, {csvRows.reduce((s, r) => s + r.eggs, 0)} Eier:
             </p>
 
             <div className="overflow-y-auto flex-1 -mx-2 px-2 space-y-1.5">
@@ -247,12 +308,21 @@ export function ChickensPage() {
                     <p className="text-sm font-medium text-gray-800 truncate">{row.name}</p>
                     {row.breed && <p className="text-xs text-gray-400 truncate">{row.breed}</p>}
                   </div>
+                  {row.eggs > 0 && (
+                    <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                      <Egg className="w-3 h-3" /> {row.eggs}
+                    </span>
+                  )}
                   {importing && i < importDone && (
                     <Check className="w-4 h-4 text-green-500 shrink-0" />
                   )}
                 </div>
               ))}
             </div>
+
+            {importStatus && (
+              <p className="text-xs text-green-600 text-center animate-pulse">{importStatus}</p>
+            )}
 
             <div className="flex gap-3 pt-1">
               <button
@@ -270,7 +340,7 @@ export function ChickensPage() {
                 {importing ? (
                   <>{importDone}/{csvRows.length} importiert...</>
                 ) : (
-                  <><Upload className="w-4 h-4" /> {csvRows.length} importieren</>
+                  <><Upload className="w-4 h-4" /> Importieren</>
                 )}
               </button>
             </div>
