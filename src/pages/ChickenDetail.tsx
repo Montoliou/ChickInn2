@@ -4,7 +4,7 @@ import { useChickens } from '../hooks/useChickens'
 import { useEggs } from '../hooks/useEggs'
 import { uploadPhoto } from '../hooks/usePhotoUpload'
 import { PhotoPicker } from '../components/PhotoPicker'
-import { ChevronLeft, Egg, Feather, Pill, Plus, X, Pencil, Check, Trash2 } from 'lucide-react'
+import { ChevronLeft, Egg, Feather, Pill, Plus, Pencil, Check, Trash2 } from 'lucide-react'
 
 type Tab = 'eier' | 'mauser' | 'medikation'
 
@@ -16,6 +16,7 @@ export function ChickenDetail() {
   const { eggs, addEgg, deleteEgg } = useEggs(numericId)
   const [activeTab, setActiveTab] = useState<Tab>('eier')
   const [uploading, setUploading] = useState(false)
+  const [eggToDelete, setEggToDelete] = useState<number | null>(null)
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [editBreed, setEditBreed] = useState('')
@@ -232,20 +233,37 @@ export function ChickenDetail() {
             : (
               <div className="space-y-2">
                 {eggs.map(egg => (
-                  <div key={egg.id} className="bg-white rounded-xl border border-gray-100 shadow-sm flex items-center gap-3 px-4 py-3">
+                  <div key={egg.id} className="bg-white rounded-xl border border-gray-100 shadow-sm flex items-center gap-3 px-4 py-3 overflow-hidden">
                     <div className="w-8 h-8 bg-amber-50 rounded-full flex items-center justify-center shrink-0">
                       <Egg className="w-4 h-4 text-amber-400" />
                     </div>
                     <span className="flex-1 text-sm text-gray-700">
                       {new Date(egg.laidAt).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
                     </span>
-                    <button
-                      onClick={() => deleteEgg(egg.id)}
-                      className="text-gray-300 active:text-red-400 p-2 min-w-11 min-h-11 flex items-center justify-center"
-                      aria-label="Ei löschen"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                    {eggToDelete === egg.id ? (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => setEggToDelete(null)}
+                          className="text-gray-400 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 active:scale-95 transition-transform"
+                        >
+                          Nein
+                        </button>
+                        <button
+                          onClick={() => { deleteEgg(egg.id); setEggToDelete(null) }}
+                          className="bg-red-500 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 active:scale-95 transition-transform"
+                        >
+                          <Trash2 className="w-3 h-3" /> Löschen
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setEggToDelete(egg.id)}
+                        className="text-gray-300 active:text-red-400 p-2 min-w-11 min-h-11 flex items-center justify-center"
+                        aria-label="Ei löschen"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
