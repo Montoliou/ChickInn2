@@ -72,15 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       { method: 'POST', body: JSON.stringify({ email, password, displayName }) }
     )
     setToken(res.token)
-    // Auto-create a farm for new users
-    try {
-      await apiFetch('farm.php?action=create', {
-        method: 'POST',
-        body: JSON.stringify({ name: `${displayName}s Farm` }),
-      })
-    } catch { /* ok if it fails, user can create later */ }
-    // Refresh to get farm data
-    await refreshUser()
+    setUser(mapUser(res.user))
   }, [refreshUser])
 
   const logout = useCallback(async () => {
