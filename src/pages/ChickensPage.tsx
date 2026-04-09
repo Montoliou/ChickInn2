@@ -4,7 +4,7 @@ import { useChickens } from '../hooks/useChickens'
 import { useEggs } from '../hooks/useEggs'
 import { uploadPhoto } from '../hooks/usePhotoUpload'
 import { PhotoPicker } from '../components/PhotoPicker'
-import { Plus, X, Bird, ChevronRight, Upload, FileSpreadsheet, Check, Egg, CalendarDays } from 'lucide-react'
+import { Plus, Bird, ChevronRight, Upload, FileSpreadsheet, Check, Egg, CalendarDays, Skull } from 'lucide-react'
 
 interface CsvRow { name: string; eggs: number; breed: string }
 
@@ -40,7 +40,7 @@ function parseCsv(text: string): CsvRow[] {
 }
 
 export function ChickensPage() {
-  const { chickens, addChicken, deleteChicken } = useChickens()
+  const { chickens, addChicken } = useChickens()
   const { addEgg } = useEggs()
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
@@ -222,42 +222,68 @@ export function ChickensPage() {
       )}
 
       {/* List */}
-      {chickens.length === 0 && !showForm ? (
-        <div className="text-center py-20 text-gray-400">
-          <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Bird className="w-8 h-8 text-green-300" />
-          </div>
-          <p className="font-medium text-gray-500">Noch keine Hühner</p>
-          <p className="text-sm mt-1">Tippe auf + um eines anzulegen.</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {chickens.map(chicken => (
-            <div key={chicken.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3 px-4 py-3">
-              <Link to={`/chickens/${chicken.id}`} className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="w-12 h-12 rounded-full bg-linear-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center overflow-hidden shrink-0">
-                  {chicken.photoUrl
-                    ? <img src={chicken.photoUrl} alt={chicken.name} className="w-full h-full object-cover" />
-                    : <Bird className="w-5 h-5 text-green-500" />
-                  }
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-gray-800 truncate">{chicken.name}</p>
-                  {chicken.breed && <p className="text-sm text-gray-400 truncate">{chicken.breed}</p>}
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
-              </Link>
-              <button
-                onClick={() => { if (confirm(`${chicken.name} wirklich löschen?`)) deleteChicken(chicken.id) }}
-                className="text-gray-300 p-2 active:text-red-400 shrink-0 min-w-11 min-h-11 flex items-center justify-center"
-                aria-label={`${chicken.name} löschen`}
-              >
-                <X className="w-4 h-4" />
-              </button>
+      {(() => {
+        const alive = chickens.filter(c => !c.diedAt)
+        const dead = chickens.filter(c => !!c.diedAt)
+        return chickens.length === 0 && !showForm ? (
+          <div className="text-center py-20 text-gray-400">
+            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Bird className="w-8 h-8 text-green-300" />
             </div>
-          ))}
-        </div>
-      )}
+            <p className="font-medium text-gray-500">Noch keine Hühner</p>
+            <p className="text-sm mt-1">Tippe auf + um eines anzulegen.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {alive.map(chicken => (
+              <div key={chicken.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3 px-4 py-3">
+                <Link to={`/chickens/${chicken.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-12 h-12 rounded-full bg-linear-to-br from-green-50 to-green-100 border border-green-200 flex items-center justify-center overflow-hidden shrink-0">
+                    {chicken.photoUrl
+                      ? <img src={chicken.photoUrl} alt={chicken.name} className="w-full h-full object-cover" />
+                      : <Bird className="w-5 h-5 text-green-500" />
+                    }
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-800 truncate">{chicken.name}</p>
+                    {chicken.breed && <p className="text-sm text-gray-400 truncate">{chicken.breed}</p>}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
+                </Link>
+              </div>
+            ))}
+
+            {/* Ahnengalerie */}
+            {dead.length > 0 && (
+              <>
+                <div className="flex items-center gap-2 pt-4 pb-1 px-1">
+                  <Skull className="w-4 h-4 text-gray-400" />
+                  <h2 className="text-sm font-semibold text-gray-400">Ahnengalerie</h2>
+                </div>
+                {dead.map(chicken => (
+                  <div key={chicken.id} className="bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-3 px-4 py-3 opacity-70">
+                    <Link to={`/chickens/${chicken.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-12 h-12 rounded-full bg-linear-to-br from-gray-100 to-gray-200 border border-gray-200 flex items-center justify-center overflow-hidden shrink-0 grayscale">
+                        {chicken.photoUrl
+                          ? <img src={chicken.photoUrl} alt={chicken.name} className="w-full h-full object-cover" />
+                          : <Bird className="w-5 h-5 text-gray-400" />
+                        }
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-gray-500 truncate">{chicken.name}</p>
+                        <p className="text-xs text-gray-400 truncate">
+                          {chicken.diedAt && `† ${new Date(chicken.diedAt + 'T00:00').toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
+                    </Link>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )
+      })()}
 
       {/* CSV Import Modal */}
       {showImport && (

@@ -4,7 +4,7 @@ import { useChickens } from '../hooks/useChickens'
 import { useEggs } from '../hooks/useEggs'
 import { uploadPhoto } from '../hooks/usePhotoUpload'
 import { PhotoPicker } from '../components/PhotoPicker'
-import { ChevronLeft, Egg, Pill, Plus, Pencil, Check, Trash2, Camera, CalendarDays, Minus, HeartPulse } from 'lucide-react'
+import { ChevronLeft, Egg, Pill, Plus, Pencil, Check, Trash2, Camera, CalendarDays, Minus, HeartPulse, Skull } from 'lucide-react'
 import { apiFetch } from '../api'
 
 type Tab = 'eier' | 'gesundheit' | 'medikation'
@@ -42,6 +42,8 @@ export function ChickenDetail() {
   const [editName, setEditName] = useState('')
   const [editBreed, setEditBreed] = useState('')
   const [editNotes, setEditNotes] = useState('')
+  const [editHatchedAt, setEditHatchedAt] = useState('')
+  const [editDiedAt, setEditDiedAt] = useState('')
   const [saving, setSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showEggModal, setShowEggModal] = useState(false)
@@ -95,10 +97,14 @@ export function ChickenDetail() {
     <div className="p-4 text-center text-gray-400 pt-20">Huhn nicht gefunden.</div>
   )
 
+  const isDead = !!chicken?.diedAt
+
   const startEditing = () => {
     setEditName(chicken.name)
     setEditBreed(chicken.breed ?? '')
     setEditNotes(chicken.notes ?? '')
+    setEditHatchedAt(chicken.hatchedAt ?? '')
+    setEditDiedAt(chicken.diedAt ?? '')
     setEditing(true)
   }
 
@@ -110,6 +116,8 @@ export function ChickenDetail() {
         name: editName.trim(),
         breed: editBreed.trim() || null,
         notes: editNotes.trim() || null,
+        hatchedAt: editHatchedAt || null,
+        diedAt: editDiedAt || null,
       })
       setEditing(false)
     } catch (err) {
@@ -208,8 +216,17 @@ export function ChickenDetail() {
             />
           ) : (
             <>
-              <h1 className="font-bold text-gray-900 text-lg truncate">{chicken.name}</h1>
-              {chicken.breed && <p className="text-xs text-gray-400 truncate">{chicken.breed}</p>}
+              <h1 className="font-bold text-gray-900 text-lg truncate flex items-center gap-1.5">
+                {isDead && <Skull className="w-4 h-4 text-gray-400 shrink-0" />}
+                {chicken.name}
+              </h1>
+              <p className="text-xs text-gray-400 truncate">
+                {[
+                  chicken.breed,
+                  chicken.hatchedAt && `geb. ${new Date(chicken.hatchedAt + 'T00:00').toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+                  isDead && `† ${new Date(chicken.diedAt! + 'T00:00').toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+                ].filter(Boolean).join(' · ')}
+              </p>
             </>
           )}
         </div>
@@ -232,12 +249,14 @@ export function ChickenDetail() {
             >
               <Pencil className="w-4 h-4" />
             </button>
-            <button
-              onClick={() => { setEggDate(new Date().toISOString().slice(0, 10)); setEggCount(1); setShowEggModal(true) }}
-              className="bg-green-500 text-white text-sm font-semibold px-4 py-2.5 rounded-full active:scale-95 transition-transform flex items-center gap-1.5 shadow-sm"
-            >
-              <Plus className="w-4 h-4" /> Ei
-            </button>
+            {!isDead && (
+              <button
+                onClick={() => { setEggDate(new Date().toISOString().slice(0, 10)); setEggCount(1); setShowEggModal(true) }}
+                className="bg-green-500 text-white text-sm font-semibold px-4 py-2.5 rounded-full active:scale-95 transition-transform flex items-center gap-1.5 shadow-sm"
+              >
+                <Plus className="w-4 h-4" /> Ei
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -262,6 +281,25 @@ export function ChickenDetail() {
               placeholder="Besonderheiten, Charakter..."
               rows={2}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400 resize-none"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Schlüpfdatum</label>
+            <input
+              type="date"
+              value={editHatchedAt}
+              onChange={e => setEditHatchedAt(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Todestag</label>
+            <input
+              type="date"
+              value={editDiedAt}
+              onChange={e => setEditDiedAt(e.target.value)}
+              max={new Date().toISOString().slice(0, 10)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
             />
           </div>
           <div>
@@ -535,7 +573,14 @@ export function ChickenDetail() {
                 >
                   <Minus className="w-5 h-5" />
                 </button>
-                <span className="text-3xl font-bold text-gray-900 w-12 text-center">{eggCount}</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={eggCount}
+                  onChange={e => { const v = parseInt(e.target.value); if (v > 0) setEggCount(v); else if (e.target.value === '') setEggCount(1) }}
+                  className="text-3xl font-bold text-gray-900 w-16 text-center bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
                 <button
                   onClick={() => setEggCount(c => c + 1)}
                   className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center text-gray-600 active:scale-95 transition-transform"

@@ -6,6 +6,8 @@ export interface Chicken {
   notes?: string | null
   photoUrl?: string | null
   eggPhotoUrl?: string | null
+  hatchedAt?: string | null  // DATE string "YYYY-MM-DD"
+  diedAt?: string | null     // DATE string "YYYY-MM-DD"
   createdAt: number // Unix timestamp ms
 }
 

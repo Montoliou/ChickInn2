@@ -73,7 +73,7 @@ export function Dashboard() {
           </div>
         ) : (
           <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
-            {chickens.map(chicken => (
+            {chickens.filter(c => !c.diedAt).map(chicken => (
               <button
                 key={chicken.id}
                 onClick={() => addEgg(chicken.id)}

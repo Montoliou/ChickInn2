@@ -6,6 +6,22 @@ $method = $_SERVER['REQUEST_METHOD'];
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 $farmId = $user['farm_id'] ?? null;
 
+function mapChicken(array $c): array {
+    return [
+        'id' => (int)$c['id'],
+        'userId' => (int)$c['user_id'],
+        'farmId' => $c['farm_id'] ? (int)$c['farm_id'] : null,
+        'name' => $c['name'],
+        'breed' => $c['breed'],
+        'notes' => $c['notes'],
+        'photoUrl' => $c['photo_url'],
+        'eggPhotoUrl' => $c['egg_photo_url'] ?? null,
+        'hatchedAt' => $c['hatched_at'] ?? null,
+        'diedAt' => $c['died_at'] ?? null,
+        'createdAt' => (int)$c['created_at'],
+    ];
+}
+
 // GET /api/chickens.php — list all (by farm or user)
 if ($method === 'GET' && !$id) {
     if ($farmId) {
@@ -15,19 +31,7 @@ if ($method === 'GET' && !$id) {
         $stmt = $pdo->prepare('SELECT * FROM chickens WHERE user_id = ? AND farm_id IS NULL ORDER BY created_at ASC');
         $stmt->execute([$user['id']]);
     }
-    $chickens = $stmt->fetchAll();
-
-    jsonResponse(array_map(fn($c) => [
-        'id' => (int)$c['id'],
-        'userId' => (int)$c['user_id'],
-        'farmId' => $c['farm_id'] ? (int)$c['farm_id'] : null,
-        'name' => $c['name'],
-        'breed' => $c['breed'],
-        'notes' => $c['notes'],
-        'photoUrl' => $c['photo_url'],
-        'eggPhotoUrl' => $c['egg_photo_url'] ?? null,
-        'createdAt' => (int)$c['created_at'],
-    ], $chickens));
+    jsonResponse(array_map('mapChicken', $stmt->fetchAll()));
 }
 
 // GET /api/chickens.php?id=1 — single
@@ -41,18 +45,7 @@ if ($method === 'GET' && $id) {
     }
     $c = $stmt->fetch();
     if (!$c) jsonResponse(['error' => 'Not found'], 404);
-
-    jsonResponse([
-        'id' => (int)$c['id'],
-        'userId' => (int)$c['user_id'],
-        'farmId' => $c['farm_id'] ? (int)$c['farm_id'] : null,
-        'name' => $c['name'],
-        'breed' => $c['breed'],
-        'notes' => $c['notes'],
-        'photoUrl' => $c['photo_url'],
-        'eggPhotoUrl' => $c['egg_photo_url'] ?? null,
-        'createdAt' => (int)$c['created_at'],
-    ]);
+    jsonResponse(mapChicken($c));
 }
 
 // POST /api/chickens.php — create
@@ -62,8 +55,8 @@ if ($method === 'POST') {
     if (!$name) jsonResponse(['error' => 'Name ist Pflicht'], 400);
 
     $stmt = $pdo->prepare('
-        INSERT INTO chickens (user_id, farm_id, name, breed, notes, photo_url, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO chickens (user_id, farm_id, name, breed, notes, photo_url, hatched_at, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ');
     $now = (int)(microtime(true) * 1000);
     $stmt->execute([
@@ -73,25 +66,17 @@ if ($method === 'POST') {
         trim($data['breed'] ?? '') ?: null,
         trim($data['notes'] ?? '') ?: null,
         $data['photoUrl'] ?? null,
+        $data['hatchedAt'] ?? null,
         $now,
     ]);
 
-    jsonResponse([
-        'id' => (int)$pdo->lastInsertId(),
-        'userId' => (int)$user['id'],
-        'farmId' => $farmId ? (int)$farmId : null,
-        'name' => $name,
-        'breed' => trim($data['breed'] ?? '') ?: null,
-        'notes' => trim($data['notes'] ?? '') ?: null,
-        'photoUrl' => $data['photoUrl'] ?? null,
-        'eggPhotoUrl' => null,
-        'createdAt' => $now,
-    ], 201);
+    $stmt = $pdo->prepare('SELECT * FROM chickens WHERE id = ?');
+    $stmt->execute([(int)$pdo->lastInsertId()]);
+    jsonResponse(mapChicken($stmt->fetch()), 201);
 }
 
 // PUT /api/chickens.php?id=1 — update
 if ($method === 'PUT' && $id) {
-    // Verify access (farm or user)
     if ($farmId) {
         $stmt = $pdo->prepare('SELECT id FROM chickens WHERE id = ? AND farm_id = ?');
         $stmt->execute([$id, $farmId]);
@@ -105,7 +90,13 @@ if ($method === 'PUT' && $id) {
     $fields = [];
     $values = [];
 
-    foreach (['name' => 'name', 'breed' => 'breed', 'notes' => 'notes', 'photoUrl' => 'photo_url', 'eggPhotoUrl' => 'egg_photo_url'] as $input => $col) {
+    $fieldMap = [
+        'name' => 'name', 'breed' => 'breed', 'notes' => 'notes',
+        'photoUrl' => 'photo_url', 'eggPhotoUrl' => 'egg_photo_url',
+        'hatchedAt' => 'hatched_at', 'diedAt' => 'died_at',
+    ];
+
+    foreach ($fieldMap as $input => $col) {
         if (array_key_exists($input, $data)) {
             $fields[] = "$col = ?";
             $values[] = $data[$input];
@@ -118,22 +109,9 @@ if ($method === 'PUT' && $id) {
     $stmt = $pdo->prepare('UPDATE chickens SET ' . implode(', ', $fields) . ' WHERE id = ?');
     $stmt->execute($values);
 
-    // Return updated chicken
     $stmt = $pdo->prepare('SELECT * FROM chickens WHERE id = ?');
     $stmt->execute([$id]);
-    $c = $stmt->fetch();
-
-    jsonResponse([
-        'id' => (int)$c['id'],
-        'userId' => (int)$c['user_id'],
-        'farmId' => $c['farm_id'] ? (int)$c['farm_id'] : null,
-        'name' => $c['name'],
-        'breed' => $c['breed'],
-        'notes' => $c['notes'],
-        'photoUrl' => $c['photo_url'],
-        'eggPhotoUrl' => $c['egg_photo_url'] ?? null,
-        'createdAt' => (int)$c['created_at'],
-    ]);
+    jsonResponse(mapChicken($stmt->fetch()));
 }
 
 // DELETE /api/chickens.php?id=1
