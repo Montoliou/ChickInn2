@@ -62,9 +62,11 @@ if ($method === 'POST' && $action === 'create') {
     $stmt = $pdo->prepare('INSERT INTO farm_members (farm_id, user_id, role) VALUES (?, ?, ?)');
     $stmt->execute([$farmId, $user['id'], 'owner']);
 
-    // Move existing chickens and eggs to the new farm
-    $pdo->prepare('UPDATE chickens SET farm_id = ? WHERE user_id = ? AND farm_id IS NULL')->execute([$farmId, $user['id']]);
-    $pdo->prepare('UPDATE eggs SET farm_id = ? WHERE user_id = ? AND farm_id IS NULL')->execute([$farmId, $user['id']]);
+    // Move existing data to the new farm
+    foreach (['chickens', 'eggs', 'medications', 'moult_periods'] as $table) {
+        $pdo->prepare("UPDATE $table SET farm_id = ? WHERE user_id = ? AND farm_id IS NULL")
+            ->execute([$farmId, $user['id']]);
+    }
 
     jsonResponse([
         'farm' => [
@@ -103,9 +105,11 @@ if ($method === 'POST' && $action === 'join') {
     $stmt = $pdo->prepare('INSERT INTO farm_members (farm_id, user_id, role) VALUES (?, ?, ?)');
     $stmt->execute([$farm['id'], $user['id'], 'member']);
 
-    // Move user's existing chickens and eggs to the farm
-    $pdo->prepare('UPDATE chickens SET farm_id = ? WHERE user_id = ? AND farm_id IS NULL')->execute([$farm['id'], $user['id']]);
-    $pdo->prepare('UPDATE eggs SET farm_id = ? WHERE user_id = ? AND farm_id IS NULL')->execute([$farm['id'], $user['id']]);
+    // Move user's existing data to the farm
+    foreach (['chickens', 'eggs', 'medications', 'moult_periods'] as $table) {
+        $pdo->prepare("UPDATE $table SET farm_id = ? WHERE user_id = ? AND farm_id IS NULL")
+            ->execute([$farm['id'], $user['id']]);
+    }
 
     jsonResponse([
         'farm' => [
@@ -135,9 +139,11 @@ if ($method === 'POST' && $action === 'leave') {
             jsonResponse(['error' => 'Übertrage zuerst die Admin-Rechte an ein anderes Mitglied.'], 400);
         }
 
-        // Sole owner: unassign chickens/eggs back to user, delete farm
-        $pdo->prepare('UPDATE chickens SET farm_id = NULL WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $user['id']]);
-        $pdo->prepare('UPDATE eggs SET farm_id = NULL WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $user['id']]);
+        // Sole owner: unassign personal data back to the user, then delete the farm.
+        foreach (['chickens', 'eggs', 'medications', 'moult_periods'] as $table) {
+            $pdo->prepare("UPDATE $table SET farm_id = NULL WHERE farm_id = ? AND user_id = ?")
+                ->execute([$farmId, $user['id']]);
+        }
         $pdo->prepare('DELETE FROM farm_members WHERE farm_id = ?')->execute([$farmId]);
         $pdo->prepare('DELETE FROM farms WHERE id = ?')->execute([$farmId]);
     } else {

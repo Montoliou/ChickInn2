@@ -49,12 +49,14 @@ CREATE TABLE IF NOT EXISTS moult_periods (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     chicken_id  INT NOT NULL,
     user_id     INT NOT NULL,
+    farm_id     INT DEFAULT NULL,
     start_date  BIGINT NOT NULL,
     end_date    BIGINT DEFAULT NULL,
     notes       TEXT DEFAULT NULL,
     FOREIGN KEY (chicken_id) REFERENCES chickens(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_user (user_id),
+    INDEX idx_farm (farm_id),
     INDEX idx_chicken (chicken_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -62,12 +64,14 @@ CREATE TABLE IF NOT EXISTS medications (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     chicken_id  INT NOT NULL,
     user_id     INT NOT NULL,
+    farm_id     INT DEFAULT NULL,
     name        VARCHAR(200) NOT NULL,
     start_date  BIGINT NOT NULL,
-    end_date    BIGINT NOT NULL,
+    end_date    BIGINT DEFAULT NULL,
     notes       TEXT DEFAULT NULL,
     FOREIGN KEY (chicken_id) REFERENCES chickens(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_user (user_id),
+    INDEX idx_farm (farm_id),
     INDEX idx_chicken (chicken_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

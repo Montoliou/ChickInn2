@@ -1,11 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { CalendarDays, Camera, Check, ChevronLeft, Egg, Feather, HeartPulse, Minus, Pencil, Pill, Plus, Skull, Trash2 } from 'lucide-react'
+import { apiFetch } from '../api'
+import { PhotoPicker } from '../components/PhotoPicker'
 import { useChickens } from '../hooks/useChickens'
 import { useEggs } from '../hooks/useEggs'
+import { useMedications } from '../hooks/useMedications'
+import { useMoultPeriods } from '../hooks/useMoultPeriods'
 import { uploadPhoto } from '../hooks/usePhotoUpload'
-import { PhotoPicker } from '../components/PhotoPicker'
-import { ChevronLeft, Egg, Pill, Plus, Pencil, Check, Trash2, Camera, CalendarDays, Minus, HeartPulse, Skull } from 'lucide-react'
-import { apiFetch } from '../api'
+import type { Medication, MoultPeriod } from '../types'
+import { dateInputToTimestamp, formatDateInput, formatDateLabel, timestampToDateInput } from '../utils/date'
 
 type Tab = 'eier' | 'gesundheit' | 'medikation'
 
@@ -32,12 +36,54 @@ interface HealthLog {
   notes: string | null
 }
 
+interface MedicationFormState {
+  name: string
+  startDate: string
+  endDate: string
+  notes: string
+}
+
+interface MoultFormState {
+  startDate: string
+  endDate: string
+  notes: string
+}
+
+function createMedicationForm(): MedicationFormState {
+  return {
+    name: '',
+    startDate: formatDateInput(new Date()),
+    endDate: '',
+    notes: '',
+  }
+}
+
+function createMoultForm(): MoultFormState {
+  return {
+    startDate: formatDateInput(new Date()),
+    endDate: '',
+    notes: '',
+  }
+}
+
+function formatPeriodLabel(startDate: number, endDate: number | null) {
+  return `${formatDateLabel(startDate)} - ${endDate === null ? 'Läuft' : formatDateLabel(endDate)}`
+}
+
 export function ChickenDetail() {
   const { id } = useParams<{ id: string }>()
   const numericId = Number(id)
   const navigate = useNavigate()
   const { chickens, updateChicken, deleteChicken } = useChickens()
   const { eggs, addEgg, deleteEgg } = useEggs(numericId)
+  const { medications, loading: medicationsLoading, addMedication, updateMedication, deleteMedication } = useMedications(numericId)
+  const {
+    moultPeriods,
+    loading: moultPeriodsLoading,
+    addMoultPeriod,
+    updateMoultPeriod,
+    deleteMoultPeriod,
+  } = useMoultPeriods(numericId)
   const [activeTab, setActiveTab] = useState<Tab>('eier')
   const [uploading, setUploading] = useState(false)
   const [uploadingEggPhoto, setUploadingEggPhoto] = useState(false)
@@ -51,36 +97,51 @@ export function ChickenDetail() {
   const [saving, setSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showEggModal, setShowEggModal] = useState(false)
-  const [eggDate, setEggDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [eggDate, setEggDate] = useState(() => formatDateInput(new Date()))
   const [eggCount, setEggCount] = useState(1)
   const [addingEggs, setAddingEggs] = useState(false)
   const [healthLogs, setHealthLogs] = useState<HealthLog[]>([])
   const [todayChecks, setTodayChecks] = useState<Record<string, boolean>>({})
   const [healthNotes, setHealthNotes] = useState('')
   const [savingHealth, setSavingHealth] = useState(false)
+  const [showMedicationModal, setShowMedicationModal] = useState(false)
+  const [editingMedicationId, setEditingMedicationId] = useState<number | null>(null)
+  const [medicationForm, setMedicationForm] = useState<MedicationFormState>(() => createMedicationForm())
+  const [medicationError, setMedicationError] = useState('')
+  const [savingMedication, setSavingMedication] = useState(false)
+  const [medicationToDelete, setMedicationToDelete] = useState<number | null>(null)
+  const [showMoultModal, setShowMoultModal] = useState(false)
+  const [editingMoultId, setEditingMoultId] = useState<number | null>(null)
+  const [moultForm, setMoultForm] = useState<MoultFormState>(() => createMoultForm())
+  const [moultError, setMoultError] = useState('')
+  const [savingMoult, setSavingMoult] = useState(false)
+  const [moultToDelete, setMoultToDelete] = useState<number | null>(null)
+
+  const todayDate = formatDateInput(new Date())
 
   const loadHealthLogs = useCallback(async () => {
     try {
       const logs = await apiFetch<HealthLog[]>(`health.php?chickenId=${numericId}`)
       setHealthLogs(logs)
-      const today = new Date().toISOString().slice(0, 10)
-      const todayLog = logs.find(l => l.logDate === today)
+      const todayLog = logs.find(log => log.logDate === todayDate)
       if (todayLog) {
         setTodayChecks(todayLog.checks)
         setHealthNotes(todayLog.notes ?? '')
+      } else {
+        setTodayChecks({})
+        setHealthNotes('')
       }
     } catch { /* ignore */ }
-  }, [numericId])
+  }, [numericId, todayDate])
 
   useEffect(() => { loadHealthLogs() }, [loadHealthLogs])
 
   const saveHealthLog = async (checks: Record<string, boolean>, notes: string) => {
     setSavingHealth(true)
     try {
-      const today = new Date().toISOString().slice(0, 10)
       await apiFetch('health.php', {
         method: 'POST',
-        body: JSON.stringify({ chickenId: numericId, logDate: today, checks, notes: notes || null }),
+        body: JSON.stringify({ chickenId: numericId, logDate: todayDate, checks, notes: notes || null }),
       })
       await loadHealthLogs()
     } catch (err) {
@@ -102,6 +163,8 @@ export function ChickenDetail() {
   )
 
   const isDead = !!chicken?.diedAt
+  const highlightedHealthLogs = healthLogs.filter(log => Object.values(log.checks).some(Boolean) || log.notes)
+  const activeTodaySymptoms = Object.entries(todayChecks).filter(([, value]) => value)
 
   const startEditing = () => {
     setEditName(chicken.name)
@@ -137,17 +200,17 @@ export function ChickenDetail() {
   }
 
   const handleAddEggs = async () => {
+    const startOfDay = dateInputToTimestamp(eggDate, 8, 0)
+    if (startOfDay === null) return
+
     setAddingEggs(true)
     try {
-      const date = new Date(eggDate)
       for (let i = 0; i < eggCount; i++) {
-        // Spread eggs across the day (8:00 + i minutes) so they sort nicely
-        const ts = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 8, i).getTime()
-        await addEgg(chicken.id, ts)
+        await addEgg(chicken.id, startOfDay + i * 60_000)
       }
       setShowEggModal(false)
       setEggCount(1)
-      setEggDate(new Date().toISOString().slice(0, 10))
+      setEggDate(formatDateInput(new Date()))
     } catch (err) {
       console.error('Failed to add eggs:', err)
     } finally {
@@ -176,6 +239,161 @@ export function ChickenDetail() {
       console.error('Egg photo upload failed:', err)
     } finally {
       setUploadingEggPhoto(false)
+    }
+  }
+
+  const closeMedicationModal = () => {
+    setShowMedicationModal(false)
+    setEditingMedicationId(null)
+    setMedicationForm(createMedicationForm())
+    setMedicationError('')
+  }
+
+  const openMedicationCreate = () => {
+    setEditingMedicationId(null)
+    setMedicationForm(createMedicationForm())
+    setMedicationError('')
+    setShowMedicationModal(true)
+  }
+
+  const openMedicationEdit = (medication: Medication) => {
+    setEditingMedicationId(medication.id)
+    setMedicationForm({
+      name: medication.name,
+      startDate: timestampToDateInput(medication.startDate),
+      endDate: timestampToDateInput(medication.endDate),
+      notes: medication.notes ?? '',
+    })
+    setMedicationError('')
+    setShowMedicationModal(true)
+  }
+
+  const handleSaveMedication = async () => {
+    const name = medicationForm.name.trim()
+    const startDate = dateInputToTimestamp(medicationForm.startDate)
+    const endDate = medicationForm.endDate
+      ? dateInputToTimestamp(medicationForm.endDate)
+      : null
+
+    if (!name) {
+      setMedicationError('Bitte einen Medikamentennamen eingeben.')
+      return
+    }
+    if (startDate === null) {
+      setMedicationError('Bitte ein Startdatum wählen.')
+      return
+    }
+    if (endDate !== null && endDate < startDate) {
+      setMedicationError('Das Ende darf nicht vor dem Start liegen.')
+      return
+    }
+
+    setSavingMedication(true)
+    setMedicationError('')
+
+    try {
+      const payload = {
+        name,
+        startDate,
+        endDate,
+        notes: medicationForm.notes.trim() || null,
+      }
+
+      if (editingMedicationId) {
+        await updateMedication(editingMedicationId, payload)
+      } else {
+        await addMedication(payload)
+      }
+
+      closeMedicationModal()
+    } catch (err) {
+      console.error('Medication save failed:', err)
+      setMedicationError(err instanceof Error ? err.message : 'Medikation konnte nicht gespeichert werden.')
+    } finally {
+      setSavingMedication(false)
+    }
+  }
+
+  const handleDeleteMedication = async (medicationId: number) => {
+    try {
+      await deleteMedication(medicationId)
+      setMedicationToDelete(null)
+    } catch (err) {
+      console.error('Medication delete failed:', err)
+    }
+  }
+
+  const closeMoultModal = () => {
+    setShowMoultModal(false)
+    setEditingMoultId(null)
+    setMoultForm(createMoultForm())
+    setMoultError('')
+  }
+
+  const openMoultCreate = () => {
+    setEditingMoultId(null)
+    setMoultForm(createMoultForm())
+    setMoultError('')
+    setShowMoultModal(true)
+  }
+
+  const openMoultEdit = (period: MoultPeriod) => {
+    setEditingMoultId(period.id)
+    setMoultForm({
+      startDate: timestampToDateInput(period.startDate),
+      endDate: timestampToDateInput(period.endDate),
+      notes: period.notes ?? '',
+    })
+    setMoultError('')
+    setShowMoultModal(true)
+  }
+
+  const handleSaveMoult = async () => {
+    const startDate = dateInputToTimestamp(moultForm.startDate)
+    const endDate = moultForm.endDate
+      ? dateInputToTimestamp(moultForm.endDate)
+      : null
+
+    if (startDate === null) {
+      setMoultError('Bitte ein Startdatum wählen.')
+      return
+    }
+    if (endDate !== null && endDate < startDate) {
+      setMoultError('Das Ende darf nicht vor dem Start liegen.')
+      return
+    }
+
+    setSavingMoult(true)
+    setMoultError('')
+
+    try {
+      const payload = {
+        startDate,
+        endDate,
+        notes: moultForm.notes.trim() || null,
+      }
+
+      if (editingMoultId) {
+        await updateMoultPeriod(editingMoultId, payload)
+      } else {
+        await addMoultPeriod(payload)
+      }
+
+      closeMoultModal()
+    } catch (err) {
+      console.error('Moult save failed:', err)
+      setMoultError(err instanceof Error ? err.message : 'Mauser konnte nicht gespeichert werden.')
+    } finally {
+      setSavingMoult(false)
+    }
+  }
+
+  const handleDeleteMoult = async (periodId: number) => {
+    try {
+      await deleteMoultPeriod(periodId)
+      setMoultToDelete(null)
+    } catch (err) {
+      console.error('Moult delete failed:', err)
     }
   }
 
@@ -227,8 +445,8 @@ export function ChickenDetail() {
               <p className="text-xs text-gray-400 truncate">
                 {[
                   chicken.breed,
-                  chicken.hatchedAt && `geb. ${new Date(chicken.hatchedAt + 'T00:00').toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}`,
-                  isDead && `† ${new Date(chicken.diedAt! + 'T00:00').toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+                  chicken.hatchedAt && `geb. ${formatDateLabel(chicken.hatchedAt)}`,
+                  isDead && `† ${formatDateLabel(chicken.diedAt!)}`,
                 ].filter(Boolean).join(' · ')}
               </p>
             </>
@@ -255,7 +473,7 @@ export function ChickenDetail() {
             </button>
             {!isDead && (
               <button
-                onClick={() => { setEggDate(new Date().toISOString().slice(0, 10)); setEggCount(1); setShowEggModal(true) }}
+                onClick={() => { setEggDate(formatDateInput(new Date())); setEggCount(1); setShowEggModal(true) }}
                 className="bg-green-500 text-white text-sm font-semibold px-4 py-2.5 rounded-full active:scale-95 transition-transform flex items-center gap-1.5 shadow-sm"
               >
                 <Plus className="w-4 h-4" /> Ei
@@ -302,7 +520,7 @@ export function ChickenDetail() {
               type="date"
               value={editDiedAt}
               onChange={e => setEditDiedAt(e.target.value)}
-              max={new Date().toISOString().slice(0, 10)}
+              max={todayDate}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
             />
           </div>
@@ -423,7 +641,7 @@ export function ChickenDetail() {
                       <Egg className="w-4 h-4 text-amber-400" />
                     </div>
                     <span className="flex-1 text-sm text-gray-700">
-                      {new Date(egg.laidAt).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                      {formatDateLabel(egg.laidAt, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
                     </span>
                     {eggToDelete === egg.id ? (
                       <div className="flex items-center gap-1.5 shrink-0">
@@ -458,7 +676,6 @@ export function ChickenDetail() {
 
         {activeTab === 'gesundheit' && (
           <div className="space-y-4">
-            {/* Symptom entry */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
               <h3 className="text-sm font-semibold text-gray-700">
                 Auffälligkeiten melden
@@ -489,19 +706,106 @@ export function ChickenDetail() {
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
                 />
               </div>
-              {Object.values(todayChecks).some(Boolean) && (
+              {activeTodaySymptoms.length > 0 && (
                 <p className="text-xs text-red-500 font-medium">
-                  {Object.entries(todayChecks).filter(([, v]) => v).length} Auffälligkeit(en) heute gemeldet
+                  {activeTodaySymptoms.length} Auffälligkeit(en) heute gemeldet
                 </p>
               )}
             </div>
 
-            {/* Health history — only shows days with symptoms or notes */}
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-3 px-1">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700">Mauser</h3>
+                  <p className="text-xs text-gray-400">Start, Ende und Notizen zur Mauser dokumentieren.</p>
+                </div>
+                <button
+                  onClick={openMoultCreate}
+                  className="bg-green-500 text-white text-sm font-semibold px-3.5 py-2 rounded-full active:scale-95 transition-transform shadow-sm flex items-center gap-1.5 min-h-11"
+                >
+                  <Plus className="w-4 h-4" /> Neu
+                </button>
+              </div>
+
+              {moultPeriodsLoading ? (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4 flex items-center gap-3 text-sm text-gray-400">
+                  <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                  Mauser-Daten werden geladen...
+                </div>
+              ) : moultPeriods.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-dashed border-gray-200 shadow-sm px-4 py-6 text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-green-50 flex items-center justify-center">
+                    <Feather className="w-6 h-6 text-green-300" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-600">Noch keine Mauser erfasst.</p>
+                  <p className="mt-1 text-xs text-gray-400">Lege die erste Periode an, sobald die Mauser beginnt.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {moultPeriods.map(period => (
+                    <div key={period.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center shrink-0">
+                          <Feather className="w-5 h-5 text-green-500" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold text-gray-800">{formatPeriodLabel(period.startDate, period.endDate)}</p>
+                            {period.endDate === null && (
+                              <span className="px-2 py-0.5 rounded-full bg-green-100 text-[11px] font-semibold text-green-700">
+                                Läuft
+                              </span>
+                            )}
+                          </div>
+                          {period.notes && (
+                            <p className="mt-1 text-sm text-gray-500">{period.notes}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center shrink-0">
+                          <button
+                            onClick={() => openMoultEdit(period)}
+                            className="text-gray-400 min-w-11 min-h-11 flex items-center justify-center active:text-green-600"
+                            aria-label="Mauser bearbeiten"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setMoultToDelete(current => current === period.id ? null : period.id)}
+                            className="text-gray-300 min-w-11 min-h-11 flex items-center justify-center active:text-red-400"
+                            aria-label="Mauser löschen"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {moultToDelete === period.id && (
+                        <div className="border-t border-gray-100 pt-3 flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setMoultToDelete(null)}
+                            className="px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-500 active:scale-95 transition-transform"
+                          >
+                            Abbrechen
+                          </button>
+                          <button
+                            onClick={() => handleDeleteMoult(period.id)}
+                            className="px-3 py-2 rounded-lg bg-red-500 text-white text-xs font-semibold flex items-center gap-1 active:scale-95 transition-transform"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Wirklich löschen
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {healthLogs.length > 0 && (
               <div>
                 <h3 className="text-sm font-semibold text-gray-500 mb-2 px-1">Verlauf</h3>
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
-                  {healthLogs.filter(log => Object.values(log.checks).some(Boolean) || log.notes).slice(0, 20).map(log => {
+                  {highlightedHealthLogs.slice(0, 20).map(log => {
                     const activeSymptoms = Object.entries(log.checks)
                       .filter(([, v]) => v)
                       .map(([k]) => SYMPTOMS.find(s => s.key === k)?.label ?? k)
@@ -510,7 +814,7 @@ export function ChickenDetail() {
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
                           <p className="text-sm font-medium text-gray-700">
-                            {new Date(log.logDate + 'T00:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                            {formatDateLabel(log.logDate, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
                           </p>
                         </div>
                         {activeSymptoms.length > 0 && (
@@ -526,7 +830,7 @@ export function ChickenDetail() {
                       </div>
                     )
                   })}
-                  {healthLogs.every(log => !Object.values(log.checks).some(Boolean) && !log.notes) && (
+                  {highlightedHealthLogs.length === 0 && (
                     <div className="px-4 py-6 text-center text-gray-400 text-sm">
                       Keine Auffälligkeiten in den letzten 30 Tagen
                     </div>
@@ -538,11 +842,93 @@ export function ChickenDetail() {
         )}
 
         {activeTab === 'medikation' && (
-          <div className="text-center text-gray-400 pt-12">
-            <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
-              <Pill className="w-7 h-7 text-gray-300" />
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-3 px-1">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700">Behandlungen</h3>
+                <p className="text-xs text-gray-400">Medikamente, Zeitraum und Notizen pro Huhn festhalten.</p>
+              </div>
+              <button
+                onClick={openMedicationCreate}
+                className="bg-green-500 text-white text-sm font-semibold px-3.5 py-2 rounded-full active:scale-95 transition-transform shadow-sm flex items-center gap-1.5 min-h-11"
+              >
+                <Plus className="w-4 h-4" /> Neu
+              </button>
             </div>
-            <p className="text-sm">Medikations-Erfassung kommt bald</p>
+
+            {medicationsLoading ? (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4 flex items-center gap-3 text-sm text-gray-400">
+                <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                Medikationen werden geladen...
+              </div>
+            ) : medications.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-dashed border-gray-200 shadow-sm px-4 py-8 text-center">
+                <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Pill className="w-7 h-7 text-gray-300" />
+                </div>
+                <p className="text-sm font-medium text-gray-600">Noch keine Medikation erfasst.</p>
+                <p className="mt-1 text-xs text-gray-400">Lege eine Behandlung an, um Start, Ende und Hinweise festzuhalten.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {medications.map(medication => (
+                  <div key={medication.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                        <Pill className="w-5 h-5 text-emerald-500" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-gray-800">{medication.name}</p>
+                          {medication.endDate === null && (
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-[11px] font-semibold text-emerald-700">
+                              Läuft
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">{formatPeriodLabel(medication.startDate, medication.endDate)}</p>
+                        {medication.notes && (
+                          <p className="mt-2 text-sm text-gray-500">{medication.notes}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center shrink-0">
+                        <button
+                          onClick={() => openMedicationEdit(medication)}
+                          className="text-gray-400 min-w-11 min-h-11 flex items-center justify-center active:text-green-600"
+                          aria-label="Medikation bearbeiten"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setMedicationToDelete(current => current === medication.id ? null : medication.id)}
+                          className="text-gray-300 min-w-11 min-h-11 flex items-center justify-center active:text-red-400"
+                          aria-label="Medikation löschen"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {medicationToDelete === medication.id && (
+                      <div className="border-t border-gray-100 pt-3 flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setMedicationToDelete(null)}
+                          className="px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-500 active:scale-95 transition-transform"
+                        >
+                          Abbrechen
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMedication(medication.id)}
+                          className="px-3 py-2 rounded-lg bg-red-500 text-white text-xs font-semibold flex items-center gap-1 active:scale-95 transition-transform"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Wirklich löschen
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -564,7 +950,7 @@ export function ChickenDetail() {
                 type="date"
                 value={eggDate}
                 onChange={e => setEggDate(e.target.value)}
-                max={new Date().toISOString().slice(0, 10)}
+                max={todayDate}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
               />
             </div>
@@ -613,6 +999,150 @@ export function ChickenDetail() {
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>{eggCount > 1 ? `${eggCount} Eier` : '1 Ei'} eintragen</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMedicationModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => !savingMedication && closeMedicationModal()}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-xl safe-area-bottom" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Pill className="w-5 h-5 text-emerald-500" />
+              {editingMedicationId ? 'Medikation bearbeiten' : 'Medikation erfassen'}
+            </h3>
+
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Name</label>
+              <input
+                value={medicationForm.name}
+                onChange={e => setMedicationForm(current => ({ ...current, name: e.target.value }))}
+                placeholder="z.B. Baytril, Vitaminmix..."
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Start</label>
+                <input
+                  type="date"
+                  value={medicationForm.startDate}
+                  onChange={e => setMedicationForm(current => ({ ...current, startDate: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Ende</label>
+                <input
+                  type="date"
+                  value={medicationForm.endDate}
+                  onChange={e => setMedicationForm(current => ({ ...current, endDate: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Notizen</label>
+              <textarea
+                rows={3}
+                value={medicationForm.notes}
+                onChange={e => setMedicationForm(current => ({ ...current, notes: e.target.value }))}
+                placeholder="Dosierung, Hinweise, Beobachtungen..."
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400 resize-none"
+              />
+            </div>
+
+            {medicationError && (
+              <p className="text-sm text-red-500">{medicationError}</p>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={closeMedicationModal}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleSaveMedication}
+                disabled={savingMedication}
+                className="flex-1 py-3 rounded-xl bg-green-500 text-white text-sm font-semibold active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {savingMedication ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>{editingMedicationId ? 'Speichern' : 'Anlegen'}</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMoultModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => !savingMoult && closeMoultModal()}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-xl safe-area-bottom" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Feather className="w-5 h-5 text-green-500" />
+              {editingMoultId ? 'Mauser bearbeiten' : 'Mauser erfassen'}
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Start</label>
+                <input
+                  type="date"
+                  value={moultForm.startDate}
+                  onChange={e => setMoultForm(current => ({ ...current, startDate: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Ende</label>
+                <input
+                  type="date"
+                  value={moultForm.endDate}
+                  onChange={e => setMoultForm(current => ({ ...current, endDate: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Notizen</label>
+              <textarea
+                rows={3}
+                value={moultForm.notes}
+                onChange={e => setMoultForm(current => ({ ...current, notes: e.target.value }))}
+                placeholder="z.B. starke Federverluste, neue Federn sichtbar..."
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400 resize-none"
+              />
+            </div>
+
+            {moultError && (
+              <p className="text-sm text-red-500">{moultError}</p>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={closeMoultModal}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleSaveMoult}
+                disabled={savingMoult}
+                className="flex-1 py-3 rounded-xl bg-green-500 text-white text-sm font-semibold active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {savingMoult ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>{editingMoultId ? 'Speichern' : 'Anlegen'}</>
                 )}
               </button>
             </div>
