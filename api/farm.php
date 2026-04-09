@@ -27,11 +27,13 @@ if ($method === 'GET' && !$action) {
     $stmt->execute([$farmId]);
     $members = $stmt->fetchAll();
 
+    $isOwner = ($user['farm_role'] ?? '') === 'owner';
+
     jsonResponse([
         'farm' => [
             'id' => (int)$farm['id'],
             'name' => $farm['name'],
-            'inviteCode' => $farm['invite_code'],
+            'inviteCode' => $isOwner ? $farm['invite_code'] : null,
             'createdBy' => (int)$farm['created_by'],
         ],
         'members' => array_map(fn($m) => [

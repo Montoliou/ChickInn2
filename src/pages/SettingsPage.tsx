@@ -88,22 +88,24 @@ export function SettingsPage() {
               <p className="text-xs text-gray-400">{members.length} Mitglied{members.length !== 1 ? 'er' : ''}</p>
             </div>
 
-            {/* Invite code */}
-            <div className="bg-green-50 rounded-xl p-3">
-              <p className="text-xs text-green-600 mb-1.5">Einladungscode teilen:</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-xl font-mono font-bold text-green-700 tracking-widest text-center">
-                  {farm.inviteCode}
-                </code>
-                <button
-                  onClick={handleCopyCode}
-                  className="p-2.5 bg-green-500 text-white rounded-xl active:scale-95 transition-transform"
-                  aria-label="Code kopieren"
-                >
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                </button>
+            {/* Invite code — only visible to owner */}
+            {user.farmRole === 'owner' && (
+              <div className="bg-green-50 rounded-xl p-3">
+                <p className="text-xs text-green-600 mb-1.5">Einladungscode teilen:</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xl font-mono font-bold text-green-700 tracking-widest text-center">
+                    {farm.inviteCode}
+                  </code>
+                  <button
+                    onClick={handleCopyCode}
+                    className="p-2.5 bg-green-500 text-white rounded-xl active:scale-95 transition-transform"
+                    aria-label="Code kopieren"
+                  >
+                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Members list */}
             <div className="space-y-2">
@@ -120,7 +122,7 @@ export function SettingsPage() {
                     <p className="text-xs text-gray-400 truncate">{m.email}</p>
                   </div>
                   <span className="text-xs text-gray-400 shrink-0">
-                    {m.role === 'owner' ? 'Besitzer' : 'Mitglied'}
+                    {m.role === 'owner' ? 'Admin' : 'Mitglied'}
                   </span>
                 </div>
               ))}
