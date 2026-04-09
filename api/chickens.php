@@ -25,6 +25,7 @@ if ($method === 'GET' && !$id) {
         'breed' => $c['breed'],
         'notes' => $c['notes'],
         'photoUrl' => $c['photo_url'],
+        'eggPhotoUrl' => $c['egg_photo_url'] ?? null,
         'createdAt' => (int)$c['created_at'],
     ], $chickens));
 }
@@ -49,6 +50,7 @@ if ($method === 'GET' && $id) {
         'breed' => $c['breed'],
         'notes' => $c['notes'],
         'photoUrl' => $c['photo_url'],
+        'eggPhotoUrl' => $c['egg_photo_url'] ?? null,
         'createdAt' => (int)$c['created_at'],
     ]);
 }
@@ -82,6 +84,7 @@ if ($method === 'POST') {
         'breed' => trim($data['breed'] ?? '') ?: null,
         'notes' => trim($data['notes'] ?? '') ?: null,
         'photoUrl' => $data['photoUrl'] ?? null,
+        'eggPhotoUrl' => null,
         'createdAt' => $now,
     ], 201);
 }
@@ -102,7 +105,7 @@ if ($method === 'PUT' && $id) {
     $fields = [];
     $values = [];
 
-    foreach (['name' => 'name', 'breed' => 'breed', 'notes' => 'notes', 'photoUrl' => 'photo_url'] as $input => $col) {
+    foreach (['name' => 'name', 'breed' => 'breed', 'notes' => 'notes', 'photoUrl' => 'photo_url', 'eggPhotoUrl' => 'egg_photo_url'] as $input => $col) {
         if (array_key_exists($input, $data)) {
             $fields[] = "$col = ?";
             $values[] = $data[$input];
@@ -128,6 +131,7 @@ if ($method === 'PUT' && $id) {
         'breed' => $c['breed'],
         'notes' => $c['notes'],
         'photoUrl' => $c['photo_url'],
+        'eggPhotoUrl' => $c['egg_photo_url'] ?? null,
         'createdAt' => (int)$c['created_at'],
     ]);
 }
@@ -135,18 +139,20 @@ if ($method === 'PUT' && $id) {
 // DELETE /api/chickens.php?id=1
 if ($method === 'DELETE' && $id) {
     if ($farmId) {
-        $stmt = $pdo->prepare('SELECT photo_url FROM chickens WHERE id = ? AND farm_id = ?');
+        $stmt = $pdo->prepare('SELECT photo_url, egg_photo_url FROM chickens WHERE id = ? AND farm_id = ?');
         $stmt->execute([$id, $farmId]);
     } else {
-        $stmt = $pdo->prepare('SELECT photo_url FROM chickens WHERE id = ? AND user_id = ?');
+        $stmt = $pdo->prepare('SELECT photo_url, egg_photo_url FROM chickens WHERE id = ? AND user_id = ?');
         $stmt->execute([$id, $user['id']]);
     }
     $c = $stmt->fetch();
     if (!$c) jsonResponse(['error' => 'Not found'], 404);
 
-    if ($c['photo_url']) {
-        $file = __DIR__ . '/uploads/' . basename($c['photo_url']);
-        if (file_exists($file)) unlink($file);
+    foreach (['photo_url', 'egg_photo_url'] as $col) {
+        if ($c[$col]) {
+            $file = __DIR__ . '/uploads/' . basename($c[$col]);
+            if (file_exists($file)) unlink($file);
+        }
     }
 
     $stmt = $pdo->prepare('DELETE FROM chickens WHERE id = ?');

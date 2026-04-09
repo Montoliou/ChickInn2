@@ -4,7 +4,7 @@ import { useChickens } from '../hooks/useChickens'
 import { useEggs } from '../hooks/useEggs'
 import { uploadPhoto } from '../hooks/usePhotoUpload'
 import { PhotoPicker } from '../components/PhotoPicker'
-import { ChevronLeft, Egg, Feather, Pill, Plus, Pencil, Check, Trash2 } from 'lucide-react'
+import { ChevronLeft, Egg, Feather, Pill, Plus, Pencil, Check, Trash2, Camera } from 'lucide-react'
 
 type Tab = 'eier' | 'mauser' | 'medikation'
 
@@ -16,6 +16,7 @@ export function ChickenDetail() {
   const { eggs, addEgg, deleteEgg } = useEggs(numericId)
   const [activeTab, setActiveTab] = useState<Tab>('eier')
   const [uploading, setUploading] = useState(false)
+  const [uploadingEggPhoto, setUploadingEggPhoto] = useState(false)
   const [eggToDelete, setEggToDelete] = useState<number | null>(null)
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
@@ -67,6 +68,18 @@ export function ChickenDetail() {
       console.error('Photo upload failed:', err)
     } finally {
       setUploading(false)
+    }
+  }
+
+  const handleEggPhotoSelect = async (file: File) => {
+    setUploadingEggPhoto(true)
+    try {
+      const eggPhotoUrl = await uploadPhoto(file)
+      await updateChicken(chicken.id, { eggPhotoUrl })
+    } catch (err) {
+      console.error('Egg photo upload failed:', err)
+    } finally {
+      setUploadingEggPhoto(false)
     }
   }
 
@@ -167,6 +180,27 @@ export function ChickenDetail() {
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400 resize-none"
             />
           </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Ei-Referenzfoto</label>
+            <p className="text-xs text-gray-400 mb-2">Zeigt wie das Ei dieses Huhns aussieht — hilft bei der Zuordnung.</p>
+            <div className="flex items-center gap-3">
+              {uploadingEggPhoto ? (
+                <div className="w-16 h-16 rounded-xl bg-amber-50 flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <PhotoPicker
+                  currentUrl={chicken.eggPhotoUrl}
+                  onSelect={handleEggPhotoSelect}
+                  size="sm"
+                  placeholder={<Egg className="w-5 h-5 text-amber-300" />}
+                />
+              )}
+              {chicken.eggPhotoUrl && (
+                <span className="text-xs text-green-600">Ei-Foto hinterlegt</span>
+              )}
+            </div>
+          </div>
           <button
             onClick={() => setShowDeleteConfirm(true)}
             className="w-full py-2.5 rounded-xl border border-red-200 text-red-500 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform"
@@ -223,14 +257,39 @@ export function ChickenDetail() {
       {/* Content */}
       <div className="flex-1 p-4">
         {activeTab === 'eier' && (
-          eggs.length === 0
-            ? <div className="text-center text-gray-400 pt-12">
-                <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Egg className="w-7 h-7 text-amber-300" />
+          <div className="space-y-3">
+            {/* Egg reference photo card */}
+            {chicken.eggPhotoUrl ? (
+              <div className="bg-amber-50 rounded-xl border border-amber-100 p-3 flex items-center gap-3">
+                <img src={chicken.eggPhotoUrl} alt="Ei-Referenz" className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-amber-800">Ei von {chicken.name}</p>
+                  <p className="text-xs text-amber-600">Referenzfoto zur Zuordnung</p>
                 </div>
-                <p className="text-sm">Noch keine Eier erfasst.</p>
               </div>
-            : (
+            ) : !editing ? (
+              <button
+                onClick={startEditing}
+                className="w-full bg-amber-50 rounded-xl border border-dashed border-amber-200 p-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
+              >
+                <div className="w-14 h-14 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                  <Camera className="w-6 h-6 text-amber-300" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-medium text-amber-700">Ei-Foto hinterlegen</p>
+                  <p className="text-xs text-amber-500">Hilft bei der Zuordnung der Eier</p>
+                </div>
+              </button>
+            ) : null}
+
+            {eggs.length === 0
+              ? <div className="text-center text-gray-400 pt-8">
+                  <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Egg className="w-7 h-7 text-amber-300" />
+                  </div>
+                  <p className="text-sm">Noch keine Eier erfasst.</p>
+                </div>
+              : (
               <div className="space-y-2">
                 {eggs.map(egg => (
                   <div key={egg.id} className="bg-white rounded-xl border border-gray-100 shadow-sm flex items-center gap-3 px-4 py-3 overflow-hidden">
@@ -267,7 +326,8 @@ export function ChickenDetail() {
                   </div>
                 ))}
               </div>
-            )
+            )}
+          </div>
         )}
 
         {activeTab === 'mauser' && (

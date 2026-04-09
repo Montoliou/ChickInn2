@@ -6,9 +6,10 @@ interface PhotoPickerProps {
   preview?: string | null
   onSelect: (file: File) => void
   size?: 'sm' | 'lg'
+  placeholder?: React.ReactNode
 }
 
-export function PhotoPicker({ currentUrl, preview, onSelect, size = 'lg' }: PhotoPickerProps) {
+export function PhotoPicker({ currentUrl, preview, onSelect, size = 'lg', placeholder }: PhotoPickerProps) {
   const cameraRef = useRef<HTMLInputElement>(null)
   const libraryRef = useRef<HTMLInputElement>(null)
   const [showMenu, setShowMenu] = useState(false)
@@ -40,7 +41,7 @@ export function PhotoPicker({ currentUrl, preview, onSelect, size = 'lg' }: Phot
         {displayUrl ? (
           <img src={displayUrl} alt="Foto" className="w-full h-full object-cover" />
         ) : (
-          <Camera className={`${iconSize} text-green-400`} />
+          placeholder || <Camera className={`${iconSize} text-green-400`} />
         )}
         {size === 'sm' && (
           <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center ring-2 ring-white">

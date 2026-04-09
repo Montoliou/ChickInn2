@@ -104,8 +104,11 @@ export function Dashboard() {
               const chicken = chickens.find(c => c.id === egg.chickenId)
               return (
                 <div key={egg.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-8 h-8 bg-amber-50 rounded-full flex items-center justify-center shrink-0">
-                    <Egg className="w-4 h-4 text-amber-400" />
+                  <div className="w-8 h-8 bg-amber-50 rounded-full flex items-center justify-center shrink-0 overflow-hidden">
+                    {chicken?.eggPhotoUrl
+                      ? <img src={chicken.eggPhotoUrl} alt="" className="w-full h-full object-cover" />
+                      : <Egg className="w-4 h-4 text-amber-400" />
+                    }
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-800 truncate">{chicken?.name ?? '—'}</p>

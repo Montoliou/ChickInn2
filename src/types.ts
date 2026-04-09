@@ -5,6 +5,7 @@ export interface Chicken {
   breed?: string | null
   notes?: string | null
   photoUrl?: string | null
+  eggPhotoUrl?: string | null
   createdAt: number // Unix timestamp ms
 }
 
