@@ -1,12 +1,32 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useChickens } from '../hooks/useChickens'
 import { useEggs } from '../hooks/useEggs'
 import { uploadPhoto } from '../hooks/usePhotoUpload'
 import { PhotoPicker } from '../components/PhotoPicker'
-import { ChevronLeft, Egg, Feather, Pill, Plus, Pencil, Check, Trash2, Camera, CalendarDays, Minus } from 'lucide-react'
+import { ChevronLeft, Egg, Pill, Plus, Pencil, Check, Trash2, Camera, CalendarDays, Minus, HeartPulse } from 'lucide-react'
+import { apiFetch } from '../api'
 
-type Tab = 'eier' | 'mauser' | 'medikation'
+type Tab = 'eier' | 'gesundheit' | 'medikation'
+
+const HEALTH_CHECKS = [
+  { key: 'eating', label: 'Frisst normal', emoji: '🌾' },
+  { key: 'drinking', label: 'Trinkt normal', emoji: '💧' },
+  { key: 'active', label: 'Aktiv & munter', emoji: '🐔' },
+  { key: 'feathers', label: 'Gefieder in Ordnung', emoji: '🪶' },
+  { key: 'droppings', label: 'Kot normal', emoji: '💩' },
+  { key: 'eyes', label: 'Augen klar', emoji: '👁️' },
+  { key: 'comb', label: 'Kamm rot & gesund', emoji: '❤️' },
+  { key: 'laying', label: 'Legt regelmäßig', emoji: '🥚' },
+] as const
+
+interface HealthLog {
+  id: number
+  chickenId: number
+  logDate: string
+  checks: Record<string, boolean>
+  notes: string | null
+}
 
 export function ChickenDetail() {
   const { id } = useParams<{ id: string }>()
@@ -28,6 +48,47 @@ export function ChickenDetail() {
   const [eggDate, setEggDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [eggCount, setEggCount] = useState(1)
   const [addingEggs, setAddingEggs] = useState(false)
+  const [healthLogs, setHealthLogs] = useState<HealthLog[]>([])
+  const [todayChecks, setTodayChecks] = useState<Record<string, boolean>>({})
+  const [healthNotes, setHealthNotes] = useState('')
+  const [savingHealth, setSavingHealth] = useState(false)
+
+  const loadHealthLogs = useCallback(async () => {
+    try {
+      const logs = await apiFetch<HealthLog[]>(`health.php?chickenId=${numericId}`)
+      setHealthLogs(logs)
+      const today = new Date().toISOString().slice(0, 10)
+      const todayLog = logs.find(l => l.logDate === today)
+      if (todayLog) {
+        setTodayChecks(todayLog.checks)
+        setHealthNotes(todayLog.notes ?? '')
+      }
+    } catch { /* ignore */ }
+  }, [numericId])
+
+  useEffect(() => { loadHealthLogs() }, [loadHealthLogs])
+
+  const saveHealthLog = async (checks: Record<string, boolean>, notes: string) => {
+    setSavingHealth(true)
+    try {
+      const today = new Date().toISOString().slice(0, 10)
+      await apiFetch('health.php', {
+        method: 'POST',
+        body: JSON.stringify({ chickenId: numericId, logDate: today, checks, notes: notes || null }),
+      })
+      await loadHealthLogs()
+    } catch (err) {
+      console.error('Health save failed:', err)
+    } finally {
+      setSavingHealth(false)
+    }
+  }
+
+  const toggleCheck = (key: string) => {
+    const updated = { ...todayChecks, [key]: !todayChecks[key] }
+    setTodayChecks(updated)
+    saveHealthLog(updated, healthNotes)
+  }
 
   const chicken = chickens.find(c => c.id === numericId)
   if (!chicken) return (
@@ -108,7 +169,7 @@ export function ChickenDetail() {
 
   const tabs: { key: Tab; label: string; Icon: typeof Egg }[] = [
     { key: 'eier', label: 'Eier', Icon: Egg },
-    { key: 'mauser', label: 'Mauser', Icon: Feather },
+    { key: 'gesundheit', label: 'Gesundheit', Icon: HeartPulse },
     { key: 'medikation', label: 'Medikation', Icon: Pill },
   ]
 
@@ -353,12 +414,81 @@ export function ChickenDetail() {
           </div>
         )}
 
-        {activeTab === 'mauser' && (
-          <div className="text-center text-gray-400 pt-12">
-            <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
-              <Feather className="w-7 h-7 text-gray-300" />
+        {activeTab === 'gesundheit' && (
+          <div className="space-y-4">
+            {/* Today's checks */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+              <h3 className="text-sm font-semibold text-gray-700">
+                Heute ({new Date().toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })})
+              </h3>
+              <div className="space-y-1">
+                {HEALTH_CHECKS.map(check => (
+                  <button
+                    key={check.key}
+                    onClick={() => toggleCheck(check.key)}
+                    disabled={savingHealth}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors text-left active:scale-[0.99] ${
+                      todayChecks[check.key]
+                        ? 'bg-green-50 border border-green-200'
+                        : 'bg-gray-50 border border-transparent'
+                    }`}
+                  >
+                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${
+                      todayChecks[check.key]
+                        ? 'bg-green-500 border-green-500'
+                        : 'border-gray-300 bg-white'
+                    }`}>
+                      {todayChecks[check.key] && <Check className="w-4 h-4 text-white" />}
+                    </div>
+                    <span className="text-sm mr-1">{check.emoji}</span>
+                    <span className={`text-sm flex-1 ${todayChecks[check.key] ? 'text-green-700' : 'text-gray-600'}`}>
+                      {check.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div>
+                <input
+                  value={healthNotes}
+                  onChange={e => setHealthNotes(e.target.value)}
+                  onBlur={() => saveHealthLog(todayChecks, healthNotes)}
+                  placeholder="Notiz zum heutigen Zustand..."
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
+                />
+              </div>
             </div>
-            <p className="text-sm">Mauser-Erfassung kommt bald</p>
+
+            {/* Recent health history */}
+            {healthLogs.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-500 mb-2 px-1">Verlauf (letzte 30 Tage)</h3>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
+                  {healthLogs.slice(0, 14).map(log => {
+                    const checkedCount = Object.values(log.checks).filter(Boolean).length
+                    const total = HEALTH_CHECKS.length
+                    const pct = Math.round((checkedCount / total) * 100)
+                    return (
+                      <div key={log.id} className="px-4 py-3 flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
+                          pct >= 80 ? 'bg-green-100 text-green-600' :
+                          pct >= 50 ? 'bg-amber-100 text-amber-600' :
+                          'bg-red-100 text-red-600'
+                        }`}>
+                          {pct}%
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-700">
+                            {new Date(log.logDate + 'T00:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short' })}
+                          </p>
+                          {log.notes && <p className="text-xs text-gray-400 truncate">{log.notes}</p>}
+                        </div>
+                        <span className="text-xs text-gray-400 shrink-0">{checkedCount}/{total}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
