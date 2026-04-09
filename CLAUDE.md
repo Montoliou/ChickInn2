@@ -32,10 +32,12 @@ api/                        # PHP Backend (wird auf Server deployed)
   eggs.php                 # Eier CRUD (GET/POST/DELETE)
   farm.php                 # Farm-Management (create/join/leave/transfer/remove)
   health.php               # Gesundheits-Logs (GET/POST mit Upsert)
+  medications.php          # Medikation CRUD pro Huhn
+  moult.php                # Mauser-Perioden CRUD pro Huhn
   upload.php               # Foto-Upload (multipart/form-data)
   schema.sql               # Basis-Schema (users, auth_tokens, chickens, eggs, moult_periods, medications)
   migrate_farms.sql         # Migration: farms + farm_members + farm_id auf chickens/eggs
-  migrate_fix.sql           # Migration: hatched_at + died_at auf chickens
+  migrate_fix.sql           # Aktuelle Nachmigrationen (zuletzt: farm_id + nullable end_date für v1.4)
   run_migration.php         # Migration-Runner (GET mit ?key=chickinn2026migrate)
   .htaccess                # Schutz für config.php
   uploads/                 # Hochgeladene Fotos (auf Server, nicht im Repo)
@@ -51,7 +53,11 @@ src/
   hooks/
     useChickens.ts         # CRUD Hook: chickens[], addChicken, updateChicken, deleteChicken
     useEggs.ts             # CRUD Hook: eggs[], addEgg, deleteEgg
+    useMedications.ts      # CRUD Hook: medications[], add/update/delete
+    useMoultPeriods.ts     # CRUD Hook: moultPeriods[], add/update/delete
     usePhotoUpload.ts      # uploadPhoto(): Client-side Resize + Upload
+  utils/
+    date.ts                # Stabile YYYY-MM-DD <-> Unix-ms Konvertierung
   components/
     Layout.tsx             # Outlet + BottomNav Wrapper
     BottomNav.tsx          # Fixed bottom nav, 4 Tabs (Dashboard, Hühner, Reports, Settings)
@@ -61,7 +67,7 @@ src/
   pages/
     Dashboard.tsx          # Stats-Grid + Quick Egg Log (nur lebende Hühner) + Letzte Eier
     ChickensPage.tsx       # Hühner-Liste + Add-Form + CSV-Import + Ahnengalerie (tote Hühner)
-    ChickenDetail.tsx      # Tab-View: Eier / Gesundheit / Medikation + Edit-Mode + Ei-Modal
+    ChickenDetail.tsx      # Eier + Gesundheit + Medikation inkl. Mauser/Medikations-CRUD, Edit-Mode + Ei-Modal
     ReportsPage.tsx        # BarChart (12 Wochen) + Pro-Huhn-Balken
     SettingsPage.tsx       # Farm-Management + Account + App-Info
 
@@ -135,18 +141,32 @@ notes TEXT NULL
 UNIQUE(chicken_id, log_date)            -- ein Eintrag pro Huhn pro Tag (Upsert)
 ```
 
-### `moult_periods` / `medications`
-Schema existiert, Frontend noch nicht implementiert.
+### `moult_periods`
+```sql
+id INT PK, chicken_id FK, user_id FK, farm_id INT NULL
+start_date BIGINT                       -- Unix ms
+end_date BIGINT NULL                    -- NULL = läuft noch
+notes TEXT NULL
+```
+
+### `medications`
+```sql
+id INT PK, chicken_id FK, user_id FK, farm_id INT NULL
+name VARCHAR(200) NOT NULL
+start_date BIGINT                       -- Unix ms
+end_date BIGINT NULL                    -- NULL = Behandlung läuft noch
+notes TEXT NULL
+```
 
 ## Farm-Sharing Konzept
 - Jeder User kann eine Farm erstellen oder per **6-stelligem Invite-Code** beitreten
-- Beim Erstellen/Beitreten werden bestehende Hühner/Eier (farm_id IS NULL) in die Farm migriert
+- Beim Erstellen/Beitreten werden bestehende Hühner/Eier/Medikationen/Mauser-Daten (`farm_id IS NULL`) in die Farm migriert
 - Alle Queries filtern per `farm_id` wenn User einer Farm angehört, sonst per `user_id`
 - **Owner** (Admin): sieht Invite-Code, kann Mitglieder entfernen, Admin-Rechte übertragen, Farm umbenennen
 - **Member**: kann Farm verlassen
-- Beim Verlassen bleiben Hühner/Eier in der Farm (User verliert nur Zugriff)
+- Beim Verlassen bleiben Hühner/Eier/Medikationen/Mauser-Daten in der Farm (User verliert nur Zugriff)
 - Owner mit anderen Mitgliedern muss erst Admin-Rechte übertragen
-- Alleiniger Owner kann Farm auflösen (Hühner/Eier werden ihm zurückgegeben)
+- Alleiniger Owner kann Farm auflösen (eigene Hühner/Eier/Medikationen/Mauser-Daten werden ihm zurückgegeben)
 
 ## Auth-System
 - Token wird bei Login/Register generiert (64-Byte Hex, 90 Tage)
@@ -192,9 +212,28 @@ POST   /api/farm.php?action=new-code        Neuen Invite-Code generieren
 GET    /api/health.php?chickenId=1          Gesundheits-Logs (optional &from=&to=)
 POST   /api/health.php                      Log anlegen/updaten { chickenId, logDate, checks, notes? }
 
+# Medications
+GET    /api/medications.php?chickenId=1     Medikationen eines Huhns
+POST   /api/medications.php                 Medikation anlegen { chickenId, name, startDate, endDate?, notes? }
+PUT    /api/medications.php?id=1            Medikation bearbeiten { name?, startDate?, endDate?, notes? }
+DELETE /api/medications.php?id=1            Medikation löschen
+
+# Moult
+GET    /api/moult.php?chickenId=1           Mauser-Perioden eines Huhns
+POST   /api/moult.php                       Mauser anlegen { chickenId, startDate, endDate?, notes? }
+PUT    /api/moult.php?id=1                  Mauser bearbeiten { startDate?, endDate?, notes? }
+DELETE /api/moult.php?id=1                  Mauser löschen
+
 # Upload
 POST   /api/upload.php                      Foto hochladen (multipart/form-data, field: "photo")
 ```
+
+## Aktueller Stand
+- `v1.4` ist implementiert, deployt und die Migration wurde auf Produktion ausgeführt.
+- Medikation hat vollen CRUD im eigenen Tab von `ChickenDetail.tsx`.
+- Mauser hat vollen CRUD innerhalb des Gesundheit-Screens von `ChickenDetail.tsx`.
+- `medications.end_date` ist nullable; offene Einträge werden im UI als `Läuft` dargestellt.
+- Neue Endpunkte antworten produktiv korrekt und verlangen Auth (`401` ohne Token).
 
 ## Lokale Entwicklung
 ```bash

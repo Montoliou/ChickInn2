@@ -54,19 +54,27 @@
   - Nur antippen wenn etwas nicht stimmt, Freitext-Notiz
   - Verlauf zeigt nur Tage mit gemeldeten Auffälligkeiten
 
+### v1.4 — Medikation + Mauser
+- [x] **Medikation vollständig erfasst**
+  - CRUD für Medikation: Name, Start/Ende, Notizen
+  - Laufende Behandlungen ohne Enddatum möglich (`Läuft`)
+  - Eigener Backend-Endpoint `api/medications.php`
+  - Medikation-Tab in `ChickenDetail.tsx` zeigt Liste + Add/Edit/Delete
+
+- [x] **Mauser im Gesundheitsscreen integriert**
+  - CRUD für Mauser-Perioden: Start/Ende, Notizen
+  - Laufende Mauser ohne Enddatum möglich (`Läuft`)
+  - Eigener Backend-Endpoint `api/moult.php`
+  - UI bewusst in Gesundheit integriert, nicht als vierter Tab
+
+- [x] **Farm-Sharing für Medikation + Mauser nachgezogen**
+  - `medications` und `moult_periods` haben jetzt `farm_id`
+  - Farm create/join/leave migriert diese Daten analog zu Hühnern/Eiern
+  - Migration deployt und auf Produktion ausgeführt
+
 ---
 
 ## Offen
-
-### v1.4 — Medikation + Mauser
-- [ ] Medikation erfassen: Name, Start/Ende, Notizen
-  - Schema existiert (`medications` Tabelle), Frontend fehlt
-  - Tab "Medikation" in ChickenDetail.tsx zeigt aktuell nur Placeholder
-  - **Dateien**: neues `api/medications.php`, `src/pages/ChickenDetail.tsx` (Medikation-Tab)
-
-- [ ] Mauser-Perioden erfassen: Start/Ende, Notizen
-  - Schema existiert (`moult_periods` Tabelle), Frontend fehlt
-  - **Dateien**: neues `api/moult.php`, ggf. eigener Tab oder in Gesundheit integrieren
 
 ### v1.5 — UX Polish
 - [ ] Loading Skeletons statt leere Screens
