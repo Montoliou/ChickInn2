@@ -9,15 +9,19 @@ import { apiFetch } from '../api'
 
 type Tab = 'eier' | 'gesundheit' | 'medikation'
 
-const HEALTH_CHECKS = [
-  { key: 'eating', label: 'Frisst normal', emoji: '🌾' },
-  { key: 'drinking', label: 'Trinkt normal', emoji: '💧' },
-  { key: 'active', label: 'Aktiv & munter', emoji: '🐔' },
-  { key: 'feathers', label: 'Gefieder in Ordnung', emoji: '🪶' },
-  { key: 'droppings', label: 'Kot normal', emoji: '💩' },
-  { key: 'eyes', label: 'Augen klar', emoji: '👁️' },
-  { key: 'comb', label: 'Kamm rot & gesund', emoji: '❤️' },
-  { key: 'laying', label: 'Legt regelmäßig', emoji: '🥚' },
+const SYMPTOMS = [
+  { key: 'not_eating', label: 'Frisst nicht' },
+  { key: 'not_drinking', label: 'Trinkt nicht' },
+  { key: 'lethargic', label: 'Apathisch' },
+  { key: 'feather_loss', label: 'Federverlust' },
+  { key: 'diarrhea', label: 'Durchfall' },
+  { key: 'soft_egg', label: 'Weiches Ei' },
+  { key: 'wind_egg', label: 'Windei' },
+  { key: 'blood_egg', label: 'Blut im Ei' },
+  { key: 'sneezing', label: 'Niesen/Atemgeräusche' },
+  { key: 'limping', label: 'Humpelt' },
+  { key: 'pale_comb', label: 'Blasser Kamm' },
+  { key: 'swollen_eyes', label: 'Augen geschwollen' },
 ] as const
 
 interface HealthLog {
@@ -454,34 +458,25 @@ export function ChickenDetail() {
 
         {activeTab === 'gesundheit' && (
           <div className="space-y-4">
-            {/* Today's checks */}
+            {/* Symptom entry */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
               <h3 className="text-sm font-semibold text-gray-700">
-                Heute ({new Date().toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })})
+                Auffälligkeiten melden
               </h3>
-              <div className="space-y-1">
-                {HEALTH_CHECKS.map(check => (
+              <p className="text-xs text-gray-400">Nur antippen, wenn etwas nicht stimmt.</p>
+              <div className="flex flex-wrap gap-2">
+                {SYMPTOMS.map(s => (
                   <button
-                    key={check.key}
-                    onClick={() => toggleCheck(check.key)}
+                    key={s.key}
+                    onClick={() => toggleCheck(s.key)}
                     disabled={savingHealth}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors text-left active:scale-[0.99] ${
-                      todayChecks[check.key]
-                        ? 'bg-green-50 border border-green-200'
-                        : 'bg-gray-50 border border-transparent'
+                    className={`px-3 py-2 rounded-full text-sm font-medium transition-colors active:scale-95 ${
+                      todayChecks[s.key]
+                        ? 'bg-red-100 text-red-700 border border-red-200'
+                        : 'bg-gray-100 text-gray-500 border border-transparent'
                     }`}
                   >
-                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${
-                      todayChecks[check.key]
-                        ? 'bg-green-500 border-green-500'
-                        : 'border-gray-300 bg-white'
-                    }`}>
-                      {todayChecks[check.key] && <Check className="w-4 h-4 text-white" />}
-                    </div>
-                    <span className="text-sm mr-1">{check.emoji}</span>
-                    <span className={`text-sm flex-1 ${todayChecks[check.key] ? 'text-green-700' : 'text-gray-600'}`}>
-                      {check.label}
-                    </span>
+                    {s.label}
                   </button>
                 ))}
               </div>
@@ -490,40 +485,52 @@ export function ChickenDetail() {
                   value={healthNotes}
                   onChange={e => setHealthNotes(e.target.value)}
                   onBlur={() => saveHealthLog(todayChecks, healthNotes)}
-                  placeholder="Notiz zum heutigen Zustand..."
+                  placeholder="Freitext-Notiz..."
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
                 />
               </div>
+              {Object.values(todayChecks).some(Boolean) && (
+                <p className="text-xs text-red-500 font-medium">
+                  {Object.entries(todayChecks).filter(([, v]) => v).length} Auffälligkeit(en) heute gemeldet
+                </p>
+              )}
             </div>
 
-            {/* Recent health history */}
+            {/* Health history — only shows days with symptoms or notes */}
             {healthLogs.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-500 mb-2 px-1">Verlauf (letzte 30 Tage)</h3>
+                <h3 className="text-sm font-semibold text-gray-500 mb-2 px-1">Verlauf</h3>
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
-                  {healthLogs.slice(0, 14).map(log => {
-                    const checkedCount = Object.values(log.checks).filter(Boolean).length
-                    const total = HEALTH_CHECKS.length
-                    const pct = Math.round((checkedCount / total) * 100)
+                  {healthLogs.filter(log => Object.values(log.checks).some(Boolean) || log.notes).slice(0, 20).map(log => {
+                    const activeSymptoms = Object.entries(log.checks)
+                      .filter(([, v]) => v)
+                      .map(([k]) => SYMPTOMS.find(s => s.key === k)?.label ?? k)
                     return (
-                      <div key={log.id} className="px-4 py-3 flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
-                          pct >= 80 ? 'bg-green-100 text-green-600' :
-                          pct >= 50 ? 'bg-amber-100 text-amber-600' :
-                          'bg-red-100 text-red-600'
-                        }`}>
-                          {pct}%
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-700">
-                            {new Date(log.logDate + 'T00:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short' })}
+                      <div key={log.id} className="px-4 py-3 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
+                          <p className="text-sm font-medium text-gray-700">
+                            {new Date(log.logDate + 'T00:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
                           </p>
-                          {log.notes && <p className="text-xs text-gray-400 truncate">{log.notes}</p>}
                         </div>
-                        <span className="text-xs text-gray-400 shrink-0">{checkedCount}/{total}</span>
+                        {activeSymptoms.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pl-4">
+                            {activeSymptoms.map(label => (
+                              <span key={label} className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full">
+                                {label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {log.notes && <p className="text-xs text-gray-400 pl-4">{log.notes}</p>}
                       </div>
                     )
                   })}
+                  {healthLogs.every(log => !Object.values(log.checks).some(Boolean) && !log.notes) && (
+                    <div className="px-4 py-6 text-center text-gray-400 text-sm">
+                      Keine Auffälligkeiten in den letzten 30 Tagen
+                    </div>
+                  )}
                 </div>
               </div>
             )}

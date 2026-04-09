@@ -306,10 +306,10 @@ export function SettingsPage() {
             </h3>
             <p className="text-sm text-gray-500">
               {isOwner && members.length === 1
-                ? 'Die Farm wird gelöscht. Deine Hühner und Eier bleiben erhalten, sind aber keiner Farm mehr zugeordnet.'
+                ? 'Die Farm wird aufgelöst. Deine Hühner und Eier bleiben erhalten und sind danach nur noch für dich sichtbar.'
                 : isOwner
                   ? 'Du musst zuerst die Admin-Rechte an ein anderes Mitglied übertragen.'
-                  : 'Deine eigenen Hühner und Eier werden aus der Farm entfernt und sind nur noch für dich sichtbar.'
+                  : 'Du verlässt die Farm. Alle Hühner und Eier bleiben in der Farm erhalten. Du kannst jederzeit per Einladungscode wieder beitreten.'
               }
             </p>
             {isOwner && members.length > 1 ? (
@@ -371,7 +371,7 @@ export function SettingsPage() {
           <div className="bg-white rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-gray-900">Mitglied entfernen?</h3>
             <p className="text-sm text-gray-500">
-              <strong>{confirmRemove.displayName}</strong> wird aus der Farm entfernt. Die Hühner/Eier dieser Person werden aus der Farm genommen.
+              <strong>{confirmRemove.displayName}</strong> wird aus der Farm entfernt. Alle Hühner und Eier bleiben in der Farm erhalten.
             </p>
             <div className="flex gap-3">
               <button

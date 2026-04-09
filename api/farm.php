@@ -116,6 +116,8 @@ if ($method === 'POST' && $action === 'join') {
 }
 
 // POST /api/farm.php?action=leave — leave current farm
+// Chickens/eggs stay in the farm (user can rejoin later via invite code).
+// Exception: sole owner dissolving the farm gets data back (farm_id -> NULL).
 if ($method === 'POST' && $action === 'leave') {
     if (!$user['farm_id']) {
         jsonResponse(['error' => 'Du bist in keiner Farm'], 400);
@@ -133,15 +135,13 @@ if ($method === 'POST' && $action === 'leave') {
             jsonResponse(['error' => 'Übertrage zuerst die Admin-Rechte an ein anderes Mitglied.'], 400);
         }
 
-        // Sole owner: unassign chickens/eggs, delete farm
+        // Sole owner: unassign chickens/eggs back to user, delete farm
         $pdo->prepare('UPDATE chickens SET farm_id = NULL WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $user['id']]);
         $pdo->prepare('UPDATE eggs SET farm_id = NULL WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $user['id']]);
         $pdo->prepare('DELETE FROM farm_members WHERE farm_id = ?')->execute([$farmId]);
         $pdo->prepare('DELETE FROM farms WHERE id = ?')->execute([$farmId]);
     } else {
-        // Regular member: unassign own chickens/eggs, leave
-        $pdo->prepare('UPDATE chickens SET farm_id = NULL WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $user['id']]);
-        $pdo->prepare('UPDATE eggs SET farm_id = NULL WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $user['id']]);
+        // Regular member: data stays in farm, user just leaves
         $pdo->prepare('DELETE FROM farm_members WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $user['id']]);
     }
 
@@ -186,9 +186,7 @@ if ($method === 'POST' && $action === 'remove') {
 
     $farmId = $user['farm_id'];
 
-    // Unassign their chickens/eggs
-    $pdo->prepare('UPDATE chickens SET farm_id = NULL WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $targetUserId]);
-    $pdo->prepare('UPDATE eggs SET farm_id = NULL WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $targetUserId]);
+    // Data stays in the farm — only membership is removed
     $pdo->prepare('DELETE FROM farm_members WHERE farm_id = ? AND user_id = ?')->execute([$farmId, $targetUserId]);
 
     jsonResponse(['ok' => true]);
