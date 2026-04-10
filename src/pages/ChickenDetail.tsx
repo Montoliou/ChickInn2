@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { CalendarDays, Camera, Check, ChevronLeft, Egg, Feather, HeartPulse, Minus, Pencil, Pill, Plus, Skull, Trash2 } from 'lucide-react'
+import { Cake, CalendarDays, Camera, Check, ChevronLeft, Clock, Egg, Feather, HeartPulse, Minus, Pencil, Pill, Plus, Skull, TrendingUp, Trash2 } from 'lucide-react'
 import { apiFetch } from '../api'
 import { PhotoPicker } from '../components/PhotoPicker'
 import { SwipeableRow } from '../components/SwipeableRow'
@@ -70,6 +70,41 @@ function createMoultForm(): MoultFormState {
 
 function formatPeriodLabel(startDate: number, endDate: number | null) {
   return `${formatDateLabel(startDate)} - ${endDate === null ? 'Läuft' : formatDateLabel(endDate)}`
+}
+
+function computeAgeLabel(hatchedAt?: string | null, diedAt?: string | null): string | null {
+  if (!hatchedAt) return null
+  const start = new Date(hatchedAt).getTime()
+  if (Number.isNaN(start)) return null
+  const end = diedAt ? new Date(diedAt).getTime() : Date.now()
+  if (end < start) return null
+  const days = Math.floor((end - start) / 86400000)
+  if (days < 60) return `${days} ${days === 1 ? 'Tag' : 'Tage'}`
+  const months = Math.floor(days / 30.4375)
+  if (months < 24) return `${months} Monate`
+  const years = Math.floor(months / 12)
+  const remMonths = months - years * 12
+  if (remMonths === 0) return `${years} ${years === 1 ? 'Jahr' : 'Jahre'}`
+  return `${years} J · ${remMonths} M`
+}
+
+function computeLastEggLabel(latestMs: number): string {
+  const days = Math.floor((Date.now() - latestMs) / 86400000)
+  if (days <= 0) return 'heute'
+  if (days === 1) return 'gestern'
+  if (days < 7) return `vor ${days} Tagen`
+  return formatDateLabel(latestMs)
+}
+
+function computeAvgPerWeek(laidTimes: number[], diedAt?: string | null): string | null {
+  if (laidTimes.length < 2) return null
+  const first = Math.min(...laidTimes)
+  const last = Math.max(...laidTimes)
+  const endTime = diedAt ? new Date(diedAt).getTime() : Math.max(last, Date.now())
+  const weeks = (endTime - first) / (7 * 86400000)
+  if (weeks < 1) return laidTimes.length.toString()
+  const avg = laidTimes.length / weeks
+  return avg >= 10 ? avg.toFixed(0) : avg.toFixed(1)
 }
 
 export function ChickenDetail() {
@@ -591,6 +626,83 @@ export function ChickenDetail() {
           </div>
         </div>
       )}
+
+      {/* Steckbrief (read-only profile card) */}
+      {!editing && (() => {
+        const ageLabel = computeAgeLabel(chicken.hatchedAt, chicken.diedAt)
+        const laidTimes = eggs.map(e => e.laidAt)
+        const lastEggLabel = laidTimes.length > 0 ? computeLastEggLabel(Math.max(...laidTimes)) : null
+        const avgPerWeekLabel = computeAvgPerWeek(laidTimes, chicken.diedAt)
+        const activeMedication = medications.find(m => m.endDate === null) ?? null
+        const activeMoult = moultPeriods.find(m => m.endDate === null) ?? null
+        const hasNotes = !!chicken.notes?.trim()
+        const hasStats = ageLabel || eggs.length > 0 || avgPerWeekLabel || lastEggLabel
+        const hasBadges = activeMedication || activeMoult
+        if (!hasNotes && !hasStats && !hasBadges) return null
+        return (
+          <div className="bg-white border-b border-gray-100 px-4 py-4 space-y-3">
+            {hasNotes && (
+              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap border-l-2 border-green-200 pl-3">
+                {chicken.notes}
+              </p>
+            )}
+            {hasStats && (
+              <div className="grid grid-cols-2 gap-2">
+                {ageLabel && (
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-0.5">
+                      <Cake className="w-3.5 h-3.5" />
+                      <span>{isDead ? 'Alter bei †' : 'Alter'}</span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-800">{ageLabel}</p>
+                  </div>
+                )}
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-0.5">
+                    <Egg className="w-3.5 h-3.5" />
+                    <span>Eier gesamt</span>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-800">{eggs.length}</p>
+                </div>
+                {avgPerWeekLabel && (
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-0.5">
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      <span>Ø pro Woche</span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-800">{avgPerWeekLabel}</p>
+                  </div>
+                )}
+                {lastEggLabel && (
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-0.5">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>Letztes Ei</span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-800">{lastEggLabel}</p>
+                  </div>
+                )}
+              </div>
+            )}
+            {hasBadges && (
+              <div className="flex flex-wrap gap-2">
+                {activeMedication && (
+                  <div className="inline-flex items-center gap-1.5 bg-violet-50 border border-violet-100 text-violet-700 rounded-full px-3 py-1 text-xs font-medium">
+                    <Pill className="w-3 h-3" />
+                    <span className="truncate max-w-36">{activeMedication.name}</span>
+                  </div>
+                )}
+                {activeMoult && (
+                  <div className="inline-flex items-center gap-1.5 bg-sky-50 border border-sky-100 text-sky-700 rounded-full px-3 py-1 text-xs font-medium">
+                    <Feather className="w-3 h-3" />
+                    Mauser läuft
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Tabs */}
       <div className="flex border-b border-gray-100 bg-white">
