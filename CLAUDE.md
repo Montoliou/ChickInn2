@@ -229,11 +229,21 @@ POST   /api/upload.php                      Foto hochladen (multipart/form-data,
 ```
 
 ## Aktueller Stand
-- `v1.4` ist implementiert, deployt und die Migration wurde auf Produktion ausgeführt.
+- `v1.5` (UX Polish) ist implementiert und deployt.
+- `v1.4` (Medikation + Mauser) ist implementiert, deployt und die Migration wurde auf Produktion ausgeführt.
 - Medikation hat vollen CRUD im eigenen Tab von `ChickenDetail.tsx`.
 - Mauser hat vollen CRUD innerhalb des Gesundheit-Screens von `ChickenDetail.tsx`.
 - `medications.end_date` ist nullable; offene Einträge werden im UI als `Läuft` dargestellt.
 - Neue Endpunkte antworten produktiv korrekt und verlangen Auth (`401` ohne Token).
+
+### v1.5 — UX Polish
+- `ToastProvider` (`src/context/ToastContext.tsx`) ist in `App.tsx` verdrahtet; alle Pages nutzen `useToast()` statt `alert()`.
+- `Skeleton`/`StatCardSkeleton`/`ListRowSkeleton` (`src/components/Skeleton.tsx`) ersetzen leere Loading-Screens.
+- `SwipeableRow` (`src/components/SwipeableRow.tsx`) erlaubt Swipe-to-Delete auf der Eier-Liste in `ChickenDetail`.
+- `PullToRefresh` (`src/components/PullToRefresh.tsx`) wrap't Dashboard + ChickensPage. `Layout.tsx` nutzt jetzt Body-Scroll (kein `overflow-y-auto` auf `<main>`).
+- `vite-plugin-pwa` liefert Service Worker mit Workbox (Precache + NetworkFirst für API, CacheFirst für Uploads). Bestehendes `public/manifest.json` bleibt maßgeblich (`manifest: false`).
+- Eigenes PWA-Icon-Set (`icon-512.png`, `icon-192.png`, `apple-touch-icon.png`, `favicon.svg`) via `scripts/generate-icons.mjs` (Canvas API, @napi-rs/canvas, System-Georgia).
+- Version wird aus `package.json` über Vite-define `__APP_VERSION__` in `SettingsPage` angezeigt.
 
 ## Lokale Entwicklung
 ```bash

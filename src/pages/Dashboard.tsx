@@ -1,6 +1,9 @@
 import { useChickens } from '../hooks/useChickens'
 import { useEggs } from '../hooks/useEggs'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
+import { PullToRefresh } from '../components/PullToRefresh'
+import { StatCardSkeleton, ListRowSkeleton, Skeleton } from '../components/Skeleton'
 import { Egg, Plus, Bird, TrendingUp } from 'lucide-react'
 
 function isSameDay(ts: number, now: Date) {
@@ -26,10 +29,12 @@ function isSameYear(ts: number, now: Date) {
 
 export function Dashboard() {
   const { user } = useAuth()
-  const { chickens } = useChickens()
-  const { eggs, addEgg } = useEggs()
+  const { chickens, loading: chickensLoading, refresh: refreshChickens } = useChickens()
+  const { eggs, loading: eggsLoading, addEgg, refresh: refreshEggs } = useEggs()
+  const toast = useToast()
   const now = new Date()
 
+  const loading = chickensLoading || eggsLoading
   const firstName = user?.displayName?.split(' ')[0] ?? ''
   const greeting = now.getHours() < 12 ? 'Guten Morgen' : now.getHours() < 18 ? 'Hallo' : 'Guten Abend'
 
@@ -40,7 +45,21 @@ export function Dashboard() {
     { label: 'Jahr', value: eggs.filter(e => isSameYear(e.laidAt, now)).length, accent: 'text-cyan-600' },
   ]
 
+  const handleQuickAddEgg = async (chickenId: number, name: string) => {
+    try {
+      await addEgg(chickenId)
+      toast.success(`Ei von ${name} erfasst`)
+    } catch {
+      toast.error('Konnte Ei nicht erfassen')
+    }
+  }
+
+  const handleRefresh = async () => {
+    await Promise.all([refreshChickens(), refreshEggs()])
+  }
+
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <div className="p-4 space-y-5" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
       {/* Greeting */}
       <div>
@@ -50,12 +69,14 @@ export function Dashboard() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-4 gap-2">
-        {stats.map(s => (
-          <div key={s.label} className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 text-center">
-            <p className="text-xs text-gray-400 mb-0.5">{s.label}</p>
-            <p className={`text-2xl font-bold ${s.accent}`}>{s.value}</p>
-          </div>
-        ))}
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+          : stats.map(s => (
+              <div key={s.label} className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 text-center">
+                <p className="text-xs text-gray-400 mb-0.5">{s.label}</p>
+                <p className={`text-2xl font-bold ${s.accent}`}>{s.value}</p>
+              </div>
+            ))}
       </div>
 
       {/* Quick egg log */}
@@ -76,7 +97,7 @@ export function Dashboard() {
             {chickens.filter(c => !c.diedAt).map(chicken => (
               <button
                 key={chicken.id}
-                onClick={() => addEgg(chicken.id)}
+                onClick={() => handleQuickAddEgg(chicken.id, chicken.name)}
                 className="flex flex-col items-center gap-1.5 shrink-0 active:scale-95 transition-transform"
               >
                 <div className="w-14 h-14 rounded-full bg-linear-to-br from-green-50 to-green-100 border-2 border-green-300 flex items-center justify-center overflow-hidden shadow-sm">
@@ -93,7 +114,17 @@ export function Dashboard() {
       </div>
 
       {/* Recent eggs */}
-      {eggs.length > 0 && (
+      {loading ? (
+        <div>
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <Skeleton className="w-4 h-4" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => <ListRowSkeleton key={i} />)}
+          </div>
+        </div>
+      ) : eggs.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-2 px-1">
             <TrendingUp className="w-4 h-4 text-gray-400" />
@@ -123,5 +154,6 @@ export function Dashboard() {
         </div>
       )}
     </div>
+    </PullToRefresh>
   )
 }

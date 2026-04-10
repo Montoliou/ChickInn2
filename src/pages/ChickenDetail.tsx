@@ -3,11 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { CalendarDays, Camera, Check, ChevronLeft, Egg, Feather, HeartPulse, Minus, Pencil, Pill, Plus, Skull, Trash2 } from 'lucide-react'
 import { apiFetch } from '../api'
 import { PhotoPicker } from '../components/PhotoPicker'
+import { SwipeableRow } from '../components/SwipeableRow'
 import { useChickens } from '../hooks/useChickens'
 import { useEggs } from '../hooks/useEggs'
 import { useMedications } from '../hooks/useMedications'
 import { useMoultPeriods } from '../hooks/useMoultPeriods'
 import { uploadPhoto } from '../hooks/usePhotoUpload'
+import { useToast } from '../context/ToastContext'
 import type { Medication, MoultPeriod } from '../types'
 import { dateInputToTimestamp, formatDateInput, formatDateLabel, timestampToDateInput } from '../utils/date'
 
@@ -74,6 +76,7 @@ export function ChickenDetail() {
   const { id } = useParams<{ id: string }>()
   const numericId = Number(id)
   const navigate = useNavigate()
+  const toast = useToast()
   const { chickens, updateChicken, deleteChicken } = useChickens()
   const { eggs, addEgg, deleteEgg } = useEggs(numericId)
   const { medications, loading: medicationsLoading, addMedication, updateMedication, deleteMedication } = useMedications(numericId)
@@ -87,7 +90,6 @@ export function ChickenDetail() {
   const [activeTab, setActiveTab] = useState<Tab>('eier')
   const [uploading, setUploading] = useState(false)
   const [uploadingEggPhoto, setUploadingEggPhoto] = useState(false)
-  const [eggToDelete, setEggToDelete] = useState<number | null>(null)
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [editBreed, setEditBreed] = useState('')
@@ -209,10 +211,12 @@ export function ChickenDetail() {
         await addEgg(chicken.id, startOfDay + i * 60_000)
       }
       setShowEggModal(false)
+      toast.success(eggCount > 1 ? `${eggCount} Eier erfasst` : 'Ei erfasst')
       setEggCount(1)
       setEggDate(formatDateInput(new Date()))
     } catch (err) {
       console.error('Failed to add eggs:', err)
+      toast.error('Konnte Eier nicht erfassen')
     } finally {
       setAddingEggs(false)
     }
@@ -301,8 +305,10 @@ export function ChickenDetail() {
 
       if (editingMedicationId) {
         await updateMedication(editingMedicationId, payload)
+        toast.success('Medikation aktualisiert')
       } else {
         await addMedication(payload)
+        toast.success('Medikation angelegt')
       }
 
       closeMedicationModal()
@@ -318,8 +324,10 @@ export function ChickenDetail() {
     try {
       await deleteMedication(medicationId)
       setMedicationToDelete(null)
+      toast.success('Medikation gelöscht')
     } catch (err) {
       console.error('Medication delete failed:', err)
+      toast.error('Konnte Medikation nicht löschen')
     }
   }
 
@@ -375,8 +383,10 @@ export function ChickenDetail() {
 
       if (editingMoultId) {
         await updateMoultPeriod(editingMoultId, payload)
+        toast.success('Mauser aktualisiert')
       } else {
         await addMoultPeriod(payload)
+        toast.success('Mauser angelegt')
       }
 
       closeMoultModal()
@@ -392,8 +402,10 @@ export function ChickenDetail() {
     try {
       await deleteMoultPeriod(periodId)
       setMoultToDelete(null)
+      toast.success('Mauser gelöscht')
     } catch (err) {
       console.error('Moult delete failed:', err)
+      toast.error('Konnte Mauser nicht löschen')
     }
   }
 
@@ -635,39 +647,28 @@ export function ChickenDetail() {
                 </div>
               : (
               <div className="space-y-2">
+                <p className="text-xs text-gray-400 px-1">Nach links wischen zum Löschen</p>
                 {eggs.map(egg => (
-                  <div key={egg.id} className="bg-white rounded-xl border border-gray-100 shadow-sm flex items-center gap-3 px-4 py-3 overflow-hidden">
-                    <div className="w-8 h-8 bg-amber-50 rounded-full flex items-center justify-center shrink-0">
-                      <Egg className="w-4 h-4 text-amber-400" />
-                    </div>
-                    <span className="flex-1 text-sm text-gray-700">
-                      {formatDateLabel(egg.laidAt, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
-                    </span>
-                    {eggToDelete === egg.id ? (
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          onClick={() => setEggToDelete(null)}
-                          className="text-gray-400 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 active:scale-95 transition-transform"
-                        >
-                          Nein
-                        </button>
-                        <button
-                          onClick={() => { deleteEgg(egg.id); setEggToDelete(null) }}
-                          className="bg-red-500 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 active:scale-95 transition-transform"
-                        >
-                          <Trash2 className="w-3 h-3" /> Löschen
-                        </button>
+                  <SwipeableRow
+                    key={egg.id}
+                    onDelete={async () => {
+                      try {
+                        await deleteEgg(egg.id)
+                        toast.success('Ei gelöscht')
+                      } catch {
+                        toast.error('Konnte Ei nicht löschen')
+                      }
+                    }}
+                  >
+                    <div className="bg-white border border-gray-100 shadow-sm flex items-center gap-3 px-4 py-3">
+                      <div className="w-8 h-8 bg-amber-50 rounded-full flex items-center justify-center shrink-0">
+                        <Egg className="w-4 h-4 text-amber-400" />
                       </div>
-                    ) : (
-                      <button
-                        onClick={() => setEggToDelete(egg.id)}
-                        className="text-gray-300 active:text-red-400 p-2 min-w-11 min-h-11 flex items-center justify-center"
-                        aria-label="Ei löschen"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
+                      <span className="flex-1 text-sm text-gray-700">
+                        {formatDateLabel(egg.laidAt, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                  </SwipeableRow>
                 ))}
               </div>
             )}

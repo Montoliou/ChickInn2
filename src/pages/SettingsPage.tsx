@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 import { apiFetch } from '../api'
 import { LogOut, Info, Smartphone, User, Users, Copy, Check, UserPlus, Crown, DoorOpen, Shield, UserMinus } from 'lucide-react'
 
@@ -19,6 +20,7 @@ interface FarmInfo {
 
 export function SettingsPage() {
   const { user, logout, refreshUser } = useAuth()
+  const toast = useToast()
   const [farm, setFarm] = useState<FarmInfo | null>(null)
   const [members, setMembers] = useState<FarmMember[]>([])
   const [joinCode, setJoinCode] = useState('')
@@ -59,6 +61,7 @@ export function SettingsPage() {
       })
       await refreshUser()
       setJoinCode('')
+      toast.success('Farm beigetreten')
     } catch (err) {
       setJoinError(err instanceof Error ? err.message : 'Fehler beim Beitreten')
     } finally {
@@ -74,7 +77,10 @@ export function SettingsPage() {
         body: JSON.stringify({ name: `${user?.displayName}s Farm` }),
       })
       await refreshUser()
-    } catch { /* ignore */ }
+      toast.success('Farm erstellt')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Konnte Farm nicht erstellen')
+    }
     finally { setCreatingFarm(false) }
   }
 
@@ -85,8 +91,9 @@ export function SettingsPage() {
       setFarm(null)
       setMembers([])
       await refreshUser()
+      toast.success('Farm verlassen')
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Fehler')
+      toast.error(err instanceof Error ? err.message : 'Fehler')
     }
   }
 
@@ -99,8 +106,9 @@ export function SettingsPage() {
       setConfirmTransfer(null)
       await refreshUser()
       loadFarm()
+      toast.success('Admin-Rechte übertragen')
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Fehler')
+      toast.error(err instanceof Error ? err.message : 'Fehler')
     }
   }
 
@@ -112,8 +120,9 @@ export function SettingsPage() {
       })
       setConfirmRemove(null)
       loadFarm()
+      toast.success('Mitglied entfernt')
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Fehler')
+      toast.error(err instanceof Error ? err.message : 'Fehler')
     }
   }
 
@@ -278,7 +287,7 @@ export function SettingsPage() {
         </h2>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Version</span>
-          <span className="text-gray-400">1.2.0</span>
+          <span className="text-gray-400">{__APP_VERSION__}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Plattform</span>

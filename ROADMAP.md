@@ -72,16 +72,38 @@
   - Farm create/join/leave migriert diese Daten analog zu Hühnern/Eiern
   - Migration deployt und auf Produktion ausgeführt
 
+### v1.5 — UX Polish
+- [x] **Loading Skeletons statt leere Screens**
+  - `Skeleton`, `StatCardSkeleton`, `ListRowSkeleton` in `src/components/Skeleton.tsx`
+  - Integriert in Dashboard (Stats + letzte Eier) und Hühner-Liste
+- [x] **Toast/Snackbar für Aktions-Feedback**
+  - `ToastProvider` Context mit `success`/`error`/`info` + Auto-Hide nach 2.8 s
+  - Bottom-Stack über `safe-area-inset-bottom`, `slideUp` Animation
+  - Verwendet in Dashboard, ChickensPage, ChickenDetail und SettingsPage (ersetzt alle `alert()`)
+- [x] **Swipe-to-delete auf Listeneinträgen**
+  - `SwipeableRow` (Touch-basiert, Richtungs-Lock, 60 px Threshold / 88 px Reveal)
+  - Aktiv in ChickenDetail (Eier-Liste) mit Toast-Feedback beim Löschen
+- [x] **Pull-to-Refresh Geste**
+  - `PullToRefresh` wrapper, nur bei `window.scrollY === 0`, 70 px Threshold, 110 px Max
+  - Layout umgebaut (Body-Scroll statt `overflow-y-auto` im `<main>`)
+  - Integriert in Dashboard + ChickensPage
+- [x] **Offline-Caching (Service Worker)**
+  - `vite-plugin-pwa` mit `autoUpdate` + Workbox
+  - Precache für JS/CSS/HTML/Icons, NetworkFirst für `/api/`, CacheFirst für `/uploads/`
+  - `navigateFallback` auf `/chickinn/index.html` für SPA Offline-Start
+
+- [x] **PWA Home-Screen Icon**
+  - Eigenes Icon-Set (512/192/180 PNG) via `scripts/generate-icons.mjs` (Canvas)
+  - "CHICK INN EST 2014" Holzschild-Motiv in cremefarbenem Maskable-Safe-Zone-Layout
+  - `favicon.svg` mit Chicken-Only-Silhouette als Browser-Icon
+
+- [x] **Versionspflege**
+  - `package.json` auf `1.5.0`
+  - Dynamische Anzeige in Settings über `__APP_VERSION__` Vite define
+
 ---
 
 ## Offen
-
-### v1.5 — UX Polish
-- [ ] Loading Skeletons statt leere Screens
-- [ ] Toast/Snackbar für Aktions-Feedback ("Ei erfasst", "Gespeichert")
-- [ ] Swipe-to-delete auf Listeneinträgen
-- [ ] Pull-to-Refresh Geste
-- [ ] Offline-Caching (Service Worker)
 
 ### v2.0 — Erweitert
 - [ ] CSV/Excel Export

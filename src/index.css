@@ -4,10 +4,15 @@
 body {
   margin: 0;
   background: #f8faf8;
-  overscroll-behavior: none;
+  overscroll-behavior-y: contain;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 #root {

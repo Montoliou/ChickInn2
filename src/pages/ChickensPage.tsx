@@ -4,6 +4,9 @@ import { useChickens } from '../hooks/useChickens'
 import { useEggs } from '../hooks/useEggs'
 import { uploadPhoto } from '../hooks/usePhotoUpload'
 import { PhotoPicker } from '../components/PhotoPicker'
+import { PullToRefresh } from '../components/PullToRefresh'
+import { ListRowSkeleton } from '../components/Skeleton'
+import { useToast } from '../context/ToastContext'
 import { Plus, Bird, ChevronRight, Upload, FileSpreadsheet, Check, Egg, CalendarDays, Skull } from 'lucide-react'
 
 interface CsvRow { name: string; eggs: number; breed: string }
@@ -40,8 +43,9 @@ function parseCsv(text: string): CsvRow[] {
 }
 
 export function ChickensPage() {
-  const { chickens, addChicken } = useChickens()
+  const { chickens, loading, addChicken, refresh: refreshChickens } = useChickens()
   const { addEgg } = useEggs()
+  const toast = useToast()
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [breed, setBreed] = useState('')
@@ -137,21 +141,25 @@ export function ChickensPage() {
       if (photoFile) {
         photoUrl = await uploadPhoto(photoFile)
       }
+      const newName = name.trim()
       await addChicken({
-        name: name.trim(),
+        name: newName,
         breed: breed.trim() || undefined,
         notes: notes.trim() || undefined,
         photoUrl,
       })
       resetForm()
+      toast.success(`${newName} angelegt`)
     } catch (err) {
       console.error('Failed to save chicken:', err)
+      toast.error('Konnte Huhn nicht speichern')
     } finally {
       setSaving(false)
     }
   }
 
   return (
+    <PullToRefresh onRefresh={refreshChickens}>
     <div className="p-4 space-y-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Hühner</h1>
@@ -222,7 +230,11 @@ export function ChickensPage() {
       )}
 
       {/* List */}
-      {(() => {
+      {loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => <ListRowSkeleton key={i} />)}
+        </div>
+      ) : (() => {
         const alive = chickens.filter(c => !c.diedAt)
         const dead = chickens.filter(c => !!c.diedAt)
         return chickens.length === 0 && !showForm ? (
@@ -374,5 +386,6 @@ export function ChickensPage() {
         </div>
       )}
     </div>
+    </PullToRefresh>
   )
 }
