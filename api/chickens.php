@@ -18,6 +18,7 @@ function mapChicken(array $c): array {
         'eggPhotoUrl' => $c['egg_photo_url'] ?? null,
         'hatchedAt' => $c['hatched_at'] ?? null,
         'diedAt' => $c['died_at'] ?? null,
+        'initialEggCount' => (int)($c['initial_egg_count'] ?? 0),
         'createdAt' => (int)$c['created_at'],
     ];
 }
@@ -55,8 +56,8 @@ if ($method === 'POST') {
     if (!$name) jsonResponse(['error' => 'Name ist Pflicht'], 400);
 
     $stmt = $pdo->prepare('
-        INSERT INTO chickens (user_id, farm_id, name, breed, notes, photo_url, hatched_at, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO chickens (user_id, farm_id, name, breed, notes, photo_url, hatched_at, initial_egg_count, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ');
     $now = (int)(microtime(true) * 1000);
     $stmt->execute([
@@ -67,6 +68,7 @@ if ($method === 'POST') {
         trim($data['notes'] ?? '') ?: null,
         $data['photoUrl'] ?? null,
         $data['hatchedAt'] ?? null,
+        (int)($data['initialEggCount'] ?? 0),
         $now,
     ]);
 
@@ -94,6 +96,7 @@ if ($method === 'PUT' && $id) {
         'name' => 'name', 'breed' => 'breed', 'notes' => 'notes',
         'photoUrl' => 'photo_url', 'eggPhotoUrl' => 'egg_photo_url',
         'hatchedAt' => 'hatched_at', 'diedAt' => 'died_at',
+        'initialEggCount' => 'initial_egg_count',
     ];
 
     foreach ($fieldMap as $input => $col) {

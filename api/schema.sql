@@ -27,9 +27,15 @@ CREATE TABLE IF NOT EXISTS chickens (
     breed       VARCHAR(100) DEFAULT NULL,
     notes       TEXT DEFAULT NULL,
     photo_url   VARCHAR(500) DEFAULT NULL,
+    egg_photo_url VARCHAR(500) DEFAULT NULL,
+    hatched_at  DATE DEFAULT NULL,
+    died_at     DATE DEFAULT NULL,
+    farm_id     INT DEFAULT NULL,
+    initial_egg_count INT NOT NULL DEFAULT 0,
     created_at  BIGINT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_user (user_id)
+    INDEX idx_user (user_id),
+    INDEX idx_farm (farm_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS eggs (

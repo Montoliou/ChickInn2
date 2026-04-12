@@ -9,6 +9,7 @@ export interface Chicken {
   eggPhotoUrl?: string | null
   hatchedAt?: string | null  // DATE string "YYYY-MM-DD"
   diedAt?: string | null     // DATE string "YYYY-MM-DD"
+  initialEggCount?: number   // Eggs laid before app tracking
   createdAt: number // Unix timestamp ms
 }
 

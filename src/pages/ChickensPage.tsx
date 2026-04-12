@@ -50,6 +50,7 @@ export function ChickensPage() {
   const [name, setName] = useState('')
   const [breed, setBreed] = useState('')
   const [notes, setNotes] = useState('')
+  const [initialEggs, setInitialEggs] = useState('')
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -130,7 +131,7 @@ export function ChickensPage() {
   }
 
   const resetForm = () => {
-    setName(''); setBreed(''); setNotes(''); setPhotoFile(null); setPhotoPreview(null); setShowForm(false)
+    setName(''); setBreed(''); setNotes(''); setInitialEggs(''); setPhotoFile(null); setPhotoPreview(null); setShowForm(false)
   }
 
   const handleSave = async () => {
@@ -142,11 +143,13 @@ export function ChickensPage() {
         photoUrl = await uploadPhoto(photoFile)
       }
       const newName = name.trim()
+      const parsedEggs = parseInt(initialEggs) || 0
       await addChicken({
         name: newName,
         breed: breed.trim() || undefined,
         notes: notes.trim() || undefined,
         photoUrl,
+        initialEggCount: parsedEggs > 0 ? parsedEggs : undefined,
       })
       resetForm()
       toast.success(`${newName} angelegt`)
@@ -214,6 +217,18 @@ export function ChickensPage() {
             rows={2}
             className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100 resize-none transition-shadow"
           />
+          <div>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={initialEggs}
+              onChange={e => setInitialEggs(e.target.value)}
+              placeholder="Bisherige Eier (optional)"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100 transition-shadow [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <p className="text-xs text-gray-400 mt-1 px-1">Eier die vor der App-Nutzung gelegt wurden</p>
+          </div>
           <div className="flex gap-3">
             <button
               onClick={resetForm}

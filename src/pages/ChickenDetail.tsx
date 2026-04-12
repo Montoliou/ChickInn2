@@ -131,6 +131,7 @@ export function ChickenDetail() {
   const [editNotes, setEditNotes] = useState('')
   const [editHatchedAt, setEditHatchedAt] = useState('')
   const [editDiedAt, setEditDiedAt] = useState('')
+  const [editInitialEggCount, setEditInitialEggCount] = useState('')
   const [saving, setSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showEggModal, setShowEggModal] = useState(false)
@@ -209,6 +210,7 @@ export function ChickenDetail() {
     setEditNotes(chicken.notes ?? '')
     setEditHatchedAt(chicken.hatchedAt ?? '')
     setEditDiedAt(chicken.diedAt ?? '')
+    setEditInitialEggCount(chicken.initialEggCount ? String(chicken.initialEggCount) : '')
     setEditing(true)
   }
 
@@ -222,6 +224,7 @@ export function ChickenDetail() {
         notes: editNotes.trim() || null,
         hatchedAt: editHatchedAt || null,
         diedAt: editDiedAt || null,
+        initialEggCount: parseInt(editInitialEggCount) || 0,
       })
       setEditing(false)
     } catch (err) {
@@ -518,14 +521,16 @@ export function ChickenDetail() {
             >
               <Pencil className="w-4 h-4" />
             </button>
-            {!isDead && (
-              <button
-                onClick={() => { setEggDate(formatDateInput(new Date())); setEggCount(1); setShowEggModal(true) }}
-                className="bg-green-500 text-white text-sm font-semibold px-4 py-2.5 rounded-full active:scale-95 transition-transform flex items-center gap-1.5 shadow-sm"
-              >
-                <Plus className="w-4 h-4" /> Ei
-              </button>
-            )}
+            <button
+              onClick={() => {
+                setEggDate(isDead && chicken.diedAt ? chicken.diedAt : formatDateInput(new Date()))
+                setEggCount(1)
+                setShowEggModal(true)
+              }}
+              className="bg-green-500 text-white text-sm font-semibold px-4 py-2.5 rounded-full active:scale-95 transition-transform flex items-center gap-1.5 shadow-sm"
+            >
+              <Plus className="w-4 h-4" /> Ei
+            </button>
           </div>
         )}
       </div>
@@ -570,6 +575,19 @@ export function ChickenDetail() {
               max={todayDate}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
             />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Bisherige Eier</label>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={editInitialEggCount}
+              onChange={e => setEditInitialEggCount(e.target.value)}
+              placeholder="0"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <p className="text-xs text-gray-400 mt-1">Eier vor der App-Nutzung</p>
           </div>
           <div>
             <label className="text-xs font-medium text-gray-500 mb-1 block">Ei-Referenzfoto</label>
@@ -635,8 +653,10 @@ export function ChickenDetail() {
         const avgPerWeekLabel = computeAvgPerWeek(laidTimes, chicken.diedAt)
         const activeMedication = medications.find(m => m.endDate === null) ?? null
         const activeMoult = moultPeriods.find(m => m.endDate === null) ?? null
+        const initialEggs = chicken.initialEggCount ?? 0
+        const totalEggs = eggs.length + initialEggs
         const hasNotes = !!chicken.notes?.trim()
-        const hasStats = ageLabel || eggs.length > 0 || avgPerWeekLabel || lastEggLabel
+        const hasStats = ageLabel || totalEggs > 0 || avgPerWeekLabel || lastEggLabel
         const hasBadges = activeMedication || activeMoult
         if (!hasNotes && !hasStats && !hasBadges) return null
         return (
@@ -662,7 +682,10 @@ export function ChickenDetail() {
                     <Egg className="w-3.5 h-3.5" />
                     <span>Eier gesamt</span>
                   </div>
-                  <p className="text-sm font-semibold text-gray-800">{eggs.length}</p>
+                  <p className="text-sm font-semibold text-gray-800">{totalEggs}</p>
+                  {initialEggs > 0 && (
+                    <p className="text-xs text-gray-400">{eggs.length} in App · {initialEggs} davor</p>
+                  )}
                 </div>
                 {avgPerWeekLabel && (
                   <div className="bg-gray-50 rounded-xl p-3">
@@ -1063,7 +1086,7 @@ export function ChickenDetail() {
                 type="date"
                 value={eggDate}
                 onChange={e => setEggDate(e.target.value)}
-                max={todayDate}
+                max={isDead && chicken.diedAt ? chicken.diedAt : todayDate}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-green-400"
               />
             </div>
