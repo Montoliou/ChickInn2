@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS eggs (
     user_id     INT NOT NULL,
     laid_at     BIGINT NOT NULL,
     notes       TEXT DEFAULT NULL,
+    created_at  BIGINT DEFAULT NULL,
     FOREIGN KEY (chicken_id) REFERENCES chickens(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_user (user_id),

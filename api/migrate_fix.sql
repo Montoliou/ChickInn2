@@ -1,1 +1,1 @@
-ALTER TABLE chickens ADD COLUMN initial_egg_count INT NOT NULL DEFAULT 0 AFTER died_at;
+ALTER TABLE eggs ADD COLUMN created_at BIGINT DEFAULT NULL AFTER notes;

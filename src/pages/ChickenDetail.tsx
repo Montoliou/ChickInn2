@@ -96,6 +96,19 @@ function computeLastEggLabel(latestMs: number): string {
   return formatDateLabel(latestMs)
 }
 
+function formatLoggedLabel(ms: number): string {
+  const diff = Date.now() - ms
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return 'gerade eben'
+  if (minutes < 60) return `vor ${minutes} Min`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `vor ${hours} Std`
+  const days = Math.floor(hours / 24)
+  if (days === 1) return 'gestern'
+  if (days < 7) return `vor ${days} Tagen`
+  return formatDateLabel(ms)
+}
+
 function computeAvgPerWeek(laidTimes: number[], diedAt?: string | null): string | null {
   if (laidTimes.length < 2) return null
   const first = Math.min(...laidTimes)
@@ -799,9 +812,17 @@ export function ChickenDetail() {
                       <div className="w-8 h-8 bg-amber-50 rounded-full flex items-center justify-center shrink-0">
                         <Egg className="w-4 h-4 text-amber-400" />
                       </div>
-                      <span className="flex-1 text-sm text-gray-700">
-                        {formatDateLabel(egg.laidAt, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
-                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-700">
+                          {formatDateLabel(egg.laidAt, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                        </p>
+                        {(egg.createdBy || egg.createdAt) && (
+                          <p className="text-xs text-gray-400 truncate">
+                            {egg.createdBy ?? 'Unbekannt'}
+                            {egg.createdAt ? ` · ${formatLoggedLabel(egg.createdAt)}` : ''}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </SwipeableRow>
                 ))}

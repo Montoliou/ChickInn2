@@ -6,37 +6,44 @@ $method = $_SERVER['REQUEST_METHOD'];
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 $farmId = $user['farm_id'] ?? null;
 
-// GET /api/eggs.php — list (optional: ?chickenId=1)
-if ($method === 'GET' && !$id) {
-    $chickenId = isset($_GET['chickenId']) ? (int)$_GET['chickenId'] : null;
-
-    if ($farmId) {
-        if ($chickenId) {
-            $stmt = $pdo->prepare('SELECT * FROM eggs WHERE farm_id = ? AND chicken_id = ? ORDER BY laid_at DESC');
-            $stmt->execute([$farmId, $chickenId]);
-        } else {
-            $stmt = $pdo->prepare('SELECT * FROM eggs WHERE farm_id = ? ORDER BY laid_at DESC');
-            $stmt->execute([$farmId]);
-        }
-    } else {
-        if ($chickenId) {
-            $stmt = $pdo->prepare('SELECT * FROM eggs WHERE user_id = ? AND chicken_id = ? ORDER BY laid_at DESC');
-            $stmt->execute([$user['id'], $chickenId]);
-        } else {
-            $stmt = $pdo->prepare('SELECT * FROM eggs WHERE user_id = ? ORDER BY laid_at DESC');
-            $stmt->execute([$user['id']]);
-        }
-    }
-
-    $eggs = $stmt->fetchAll();
-    jsonResponse(array_map(fn($e) => [
+function mapEgg(array $e): array {
+    return [
         'id' => (int)$e['id'],
         'chickenId' => (int)$e['chicken_id'],
         'userId' => (int)$e['user_id'],
         'farmId' => $e['farm_id'] ? (int)$e['farm_id'] : null,
         'laidAt' => (int)$e['laid_at'],
         'notes' => $e['notes'],
-    ], $eggs));
+        'createdAt' => isset($e['created_at']) && $e['created_at'] !== null ? (int)$e['created_at'] : null,
+        'createdBy' => $e['created_by_name'] ?? null,
+    ];
+}
+
+// GET /api/eggs.php — list (optional: ?chickenId=1)
+if ($method === 'GET' && !$id) {
+    $chickenId = isset($_GET['chickenId']) ? (int)$_GET['chickenId'] : null;
+    $base = 'SELECT e.*, u.display_name AS created_by_name FROM eggs e LEFT JOIN users u ON u.id = e.user_id';
+
+    if ($farmId) {
+        if ($chickenId) {
+            $stmt = $pdo->prepare("$base WHERE e.farm_id = ? AND e.chicken_id = ? ORDER BY e.laid_at DESC");
+            $stmt->execute([$farmId, $chickenId]);
+        } else {
+            $stmt = $pdo->prepare("$base WHERE e.farm_id = ? ORDER BY e.laid_at DESC");
+            $stmt->execute([$farmId]);
+        }
+    } else {
+        if ($chickenId) {
+            $stmt = $pdo->prepare("$base WHERE e.user_id = ? AND e.chicken_id = ? ORDER BY e.laid_at DESC");
+            $stmt->execute([$user['id'], $chickenId]);
+        } else {
+            $stmt = $pdo->prepare("$base WHERE e.user_id = ? ORDER BY e.laid_at DESC");
+            $stmt->execute([$user['id']]);
+        }
+    }
+
+    $eggs = $stmt->fetchAll();
+    jsonResponse(array_map('mapEgg', $eggs));
 }
 
 // POST /api/eggs.php — create
@@ -56,15 +63,17 @@ if ($method === 'POST') {
     }
     if (!$stmt->fetch()) jsonResponse(['error' => 'Huhn nicht gefunden'], 404);
 
-    $laidAt = (int)($data['laidAt'] ?? round(microtime(true) * 1000));
+    $nowMs = (int)round(microtime(true) * 1000);
+    $laidAt = (int)($data['laidAt'] ?? $nowMs);
 
-    $stmt = $pdo->prepare('INSERT INTO eggs (chicken_id, user_id, farm_id, laid_at, notes) VALUES (?, ?, ?, ?, ?)');
+    $stmt = $pdo->prepare('INSERT INTO eggs (chicken_id, user_id, farm_id, laid_at, notes, created_at) VALUES (?, ?, ?, ?, ?, ?)');
     $stmt->execute([
         $chickenId,
         $user['id'],
         $farmId,
         $laidAt,
         trim($data['notes'] ?? '') ?: null,
+        $nowMs,
     ]);
 
     jsonResponse([
@@ -74,6 +83,8 @@ if ($method === 'POST') {
         'farmId' => $farmId ? (int)$farmId : null,
         'laidAt' => $laidAt,
         'notes' => trim($data['notes'] ?? '') ?: null,
+        'createdAt' => $nowMs,
+        'createdBy' => $user['display_name'] ?? null,
     ], 201);
 }
 

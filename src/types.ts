@@ -20,6 +20,8 @@ export interface Egg {
   farmId?: number | null
   laidAt: number // Unix timestamp ms
   notes?: string | null
+  createdAt?: number | null
+  createdBy?: string | null
 }
 
 export interface MoultPeriod {
