@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useChickens } from '../hooks/useChickens'
 import { useEggs } from '../hooks/useEggs'
 import { useAuth } from '../context/AuthContext'
@@ -5,6 +6,8 @@ import { useToast } from '../context/ToastContext'
 import { PullToRefresh } from '../components/PullToRefresh'
 import { StatCardSkeleton, ListRowSkeleton, Skeleton } from '../components/Skeleton'
 import { Egg, Plus, Bird, TrendingUp } from 'lucide-react'
+
+type QuickLogDay = 'today' | 'yesterday'
 
 function isSameDay(ts: number, now: Date) {
   const d = new Date(ts)
@@ -33,6 +36,7 @@ export function Dashboard() {
   const { eggs, loading: eggsLoading, addEgg, refresh: refreshEggs } = useEggs()
   const toast = useToast()
   const now = new Date()
+  const [quickLogDay, setQuickLogDay] = useState<QuickLogDay>('today')
 
   const loading = chickensLoading || eggsLoading
   const firstName = user?.displayName?.split(' ')[0] ?? ''
@@ -47,8 +51,16 @@ export function Dashboard() {
 
   const handleQuickAddEgg = async (chickenId: number, name: string) => {
     try {
-      await addEgg(chickenId)
-      toast.success(`Ei von ${name} erfasst`)
+      let laidAt: number | undefined
+      if (quickLogDay === 'yesterday') {
+        const d = new Date()
+        d.setDate(d.getDate() - 1)
+        d.setHours(8, 0, 0, 0)
+        laidAt = d.getTime()
+      }
+      await addEgg(chickenId, laidAt)
+      const suffix = quickLogDay === 'yesterday' ? ' (gestern)' : ''
+      toast.success(`Ei von ${name} erfasst${suffix}`)
     } catch {
       toast.error('Konnte Ei nicht erfassen')
     }
@@ -81,9 +93,29 @@ export function Dashboard() {
 
       {/* Quick egg log */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Plus className="w-4 h-4 text-green-500" />
-          <h2 className="text-sm font-semibold text-gray-700">Ei schnell erfassen</h2>
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <Plus className="w-4 h-4 text-green-500" />
+            <h2 className="text-sm font-semibold text-gray-700">Ei schnell erfassen</h2>
+          </div>
+          <div className="inline-flex bg-gray-100 rounded-full p-0.5 text-xs font-medium">
+            <button
+              onClick={() => setQuickLogDay('today')}
+              className={`px-3 py-1 rounded-full transition-colors ${
+                quickLogDay === 'today' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500'
+              }`}
+            >
+              Heute
+            </button>
+            <button
+              onClick={() => setQuickLogDay('yesterday')}
+              className={`px-3 py-1 rounded-full transition-colors ${
+                quickLogDay === 'yesterday' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500'
+              }`}
+            >
+              Gestern
+            </button>
+          </div>
         </div>
         {chickens.length === 0 ? (
           <div className="text-center py-6">
