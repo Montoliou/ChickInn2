@@ -7,7 +7,7 @@ import { PullToRefresh } from '../components/PullToRefresh'
 import { StatCardSkeleton, ListRowSkeleton, Skeleton } from '../components/Skeleton'
 import { Egg, Plus, Bird, TrendingUp, Check } from 'lucide-react'
 import type { Chicken } from '../types'
-import { playConfirmSound, primeAudio } from '../utils/sound'
+import { playConfirmSound, primeAudio, confirmVibrate } from '../utils/sound'
 
 type QuickLogDay = 'today' | 'yesterday'
 
@@ -40,6 +40,7 @@ function QuickEggButton({ chicken, onLog }: { chicken: Chicken; onLog: () => Pro
       try {
         await onLog()
         playConfirmSound()
+        confirmVibrate()
         setPhase('done')
         doneTimer.current = window.setTimeout(() => setPhase('idle'), 1400)
       } catch {
@@ -60,7 +61,7 @@ function QuickEggButton({ chicken, onLog }: { chicken: Chicken; onLog: () => Pro
       className={`flex flex-col items-center gap-1.5 shrink-0 select-none transition-transform ${
         phase === 'holding' ? 'scale-90' : ''
       }`}
-      style={{ touchAction: 'pan-x' }}
+      style={{ touchAction: 'pan-x', WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
     >
       <div
         className={`relative w-14 h-14 rounded-full bg-linear-to-br from-green-50 to-green-100 border-2 flex items-center justify-center overflow-hidden shadow-sm ${
@@ -68,7 +69,13 @@ function QuickEggButton({ chicken, onLog }: { chicken: Chicken; onLog: () => Pro
         }`}
       >
         {chicken.photoUrl
-          ? <img src={chicken.photoUrl} alt={chicken.name} draggable={false} className="w-full h-full object-cover" />
+          ? <img
+              src={chicken.photoUrl}
+              alt={chicken.name}
+              draggable={false}
+              className="w-full h-full object-cover pointer-events-none select-none"
+              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
+            />
           : <Bird className="w-6 h-6 text-green-400" />
         }
         {/* Hold progress: fills the circle from the bottom over HOLD_MS */}
