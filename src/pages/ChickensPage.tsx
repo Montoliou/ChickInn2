@@ -314,7 +314,7 @@ export function ChickensPage() {
 
       {/* CSV Import Modal */}
       {showImport && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => { if (!importing) setShowImport(false) }}>
+        <div className="fixed inset-0 z-60 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => { if (!importing) setShowImport(false) }}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl p-5 w-full max-w-md space-y-4 shadow-xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5 text-green-500" />

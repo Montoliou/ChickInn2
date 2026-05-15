@@ -308,7 +308,7 @@ export function SettingsPage() {
 
       {/* Confirm leave dialog */}
       {confirmLeave && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmLeave(false)}>
+        <div className="fixed inset-0 z-60 bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmLeave(false)}>
           <div className="bg-white rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-gray-900">
               {isOwner && members.length === 1 ? 'Farm auflösen?' : 'Farm verlassen?'}
@@ -350,7 +350,7 @@ export function SettingsPage() {
 
       {/* Confirm transfer dialog */}
       {confirmTransfer && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmTransfer(null)}>
+        <div className="fixed inset-0 z-60 bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmTransfer(null)}>
           <div className="bg-white rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-gray-900">Admin-Rechte übertragen?</h3>
             <p className="text-sm text-gray-500">
@@ -376,7 +376,7 @@ export function SettingsPage() {
 
       {/* Confirm remove dialog */}
       {confirmRemove && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmRemove(null)}>
+        <div className="fixed inset-0 z-60 bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmRemove(null)}>
           <div className="bg-white rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-gray-900">Mitglied entfernen?</h3>
             <p className="text-sm text-gray-500">

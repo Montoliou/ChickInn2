@@ -642,7 +642,7 @@ export function ChickenDetail() {
 
       {/* Delete confirmation */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={() => setShowDeleteConfirm(false)}>
+        <div className="fixed inset-0 z-60 bg-black/40 flex items-center justify-center p-6" onClick={() => setShowDeleteConfirm(false)}>
           <div className="bg-white rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-gray-900">Huhn löschen?</h3>
             <p className="text-sm text-gray-500">
@@ -1180,7 +1180,7 @@ export function ChickenDetail() {
 
       {/* Add egg modal */}
       {showEggModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => setShowEggModal(false)}>
+        <div className="fixed inset-0 z-60 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => setShowEggModal(false)}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-xl safe-area-bottom" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <Egg className="w-5 h-5 text-amber-400" /> Ei eintragen
@@ -1252,7 +1252,7 @@ export function ChickenDetail() {
       )}
 
       {showMedicationModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => !savingMedication && closeMedicationModal()}>
+        <div className="fixed inset-0 z-60 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => !savingMedication && closeMedicationModal()}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-xl safe-area-bottom" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <Pill className="w-5 h-5 text-emerald-500" />
@@ -1329,7 +1329,7 @@ export function ChickenDetail() {
       )}
 
       {showMoultModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => !savingMoult && closeMoultModal()}>
+        <div className="fixed inset-0 z-60 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => !savingMoult && closeMoultModal()}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl p-5 w-full max-w-sm space-y-4 shadow-xl safe-area-bottom" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <Feather className="w-5 h-5 text-green-500" />
