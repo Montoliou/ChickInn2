@@ -67,7 +67,7 @@ src/
   pages/
     Dashboard.tsx          # Stats-Grid + Quick Egg Log (nur lebende Hühner) + Letzte Eier
     ChickensPage.tsx       # Hühner-Liste + Add-Form + CSV-Import + Ahnengalerie (tote Hühner)
-    ChickenDetail.tsx      # Eier + Gesundheit + Medikation inkl. Mauser/Medikations-CRUD, Edit-Mode + Ei-Modal
+    ChickenDetail.tsx      # Eier + Statistik + Gesundheit + Medikation, Mauser/Medikations-CRUD, Edit-Mode + Ei-Modal
     ReportsPage.tsx        # BarChart (12 Wochen) + Pro-Huhn-Balken
     SettingsPage.tsx       # Farm-Management + Account + App-Info
 

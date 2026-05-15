@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Cake, CalendarDays, Camera, Check, ChevronLeft, Clock, Egg, Feather, HeartPulse, Minus, Pencil, Pill, Plus, Skull, TrendingUp, Trash2 } from 'lucide-react'
+import { BarChart3, Cake, CalendarDays, Camera, Check, ChevronLeft, Clock, Egg, Feather, HeartPulse, Minus, Pencil, Pill, Plus, Skull, TrendingUp, Trash2 } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { apiFetch } from '../api'
 import { PhotoPicker } from '../components/PhotoPicker'
 import { SwipeableRow } from '../components/SwipeableRow'
@@ -11,9 +12,9 @@ import { useMoultPeriods } from '../hooks/useMoultPeriods'
 import { uploadPhoto } from '../hooks/usePhotoUpload'
 import { useToast } from '../context/ToastContext'
 import type { Medication, MoultPeriod } from '../types'
-import { dateInputToTimestamp, formatDateInput, formatDateLabel, timestampToDateInput } from '../utils/date'
+import { dateInputToTimestamp, formatDateInput, formatDateLabel, isoWeekNumber, startOfISOWeek, timestampToDateInput } from '../utils/date'
 
-type Tab = 'eier' | 'gesundheit' | 'medikation'
+type Tab = 'eier' | 'statistik' | 'gesundheit' | 'medikation'
 
 const SYMPTOMS = [
   { key: 'not_eating', label: 'Frisst nicht' },
@@ -468,6 +469,7 @@ export function ChickenDetail() {
 
   const tabs: { key: Tab; label: string; Icon: typeof Egg }[] = [
     { key: 'eier', label: 'Eier', Icon: Egg },
+    { key: 'statistik', label: 'Statistik', Icon: BarChart3 },
     { key: 'gesundheit', label: 'Gesundheit', Icon: HeartPulse },
     { key: 'medikation', label: 'Medikation', Icon: Pill },
   ]
@@ -752,14 +754,14 @@ export function ChickenDetail() {
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`flex-1 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 min-h-12 ${
+            className={`flex-1 py-3 text-[13px] font-medium transition-colors flex items-center justify-center gap-1 min-h-12 ${
               activeTab === t.key
                 ? 'text-green-600 border-b-2 border-green-500'
                 : 'text-gray-400'
             }`}
           >
-            <t.Icon className="w-4 h-4" />
-            {t.label}
+            <t.Icon className="w-4 h-4 shrink-0" />
+            <span className="truncate">{t.label}</span>
           </button>
         ))}
       </div>
@@ -836,6 +838,86 @@ export function ChickenDetail() {
             )}
           </div>
         )}
+
+        {activeTab === 'statistik' && (() => {
+          const initialEggs = chicken.initialEggCount ?? 0
+          const totalEggs = eggs.length + initialEggs
+
+          const currentMonday = startOfISOWeek(new Date())
+          const weeklyData = Array.from({ length: 12 }, (_, i) => {
+            const weekStart = new Date(currentMonday)
+            weekStart.setDate(currentMonday.getDate() - (11 - i) * 7)
+            const weekEnd = new Date(weekStart)
+            weekEnd.setDate(weekStart.getDate() + 7)
+            const count = eggs.filter(e => e.laidAt >= weekStart.getTime() && e.laidAt < weekEnd.getTime()).length
+            return { label: `KW${isoWeekNumber(weekStart)}`, count }
+          })
+
+          const monthlyData = Array.from({ length: 6 }, (_, i) => {
+            const d = new Date()
+            d.setHours(0, 0, 0, 0)
+            d.setDate(1)
+            d.setMonth(d.getMonth() - (5 - i))
+            const monthStart = d.getTime()
+            const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime()
+            const count = eggs.filter(e => e.laidAt >= monthStart && e.laidAt < monthEnd).length
+            return { label: d.toLocaleDateString('de-DE', { month: 'short' }), count }
+          })
+          const maxMonth = Math.max(1, ...monthlyData.map(m => m.count))
+
+          if (eggs.length === 0) {
+            return (
+              <div className="text-center text-gray-400 pt-8">
+                <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <BarChart3 className="w-7 h-7 text-green-300" />
+                </div>
+                <p className="text-sm">Noch keine Eier erfasst.</p>
+                {initialEggs > 0 && (
+                  <p className="text-xs mt-1">{initialEggs} Eier vor der App-Nutzung zählen nicht im Verlauf.</p>
+                )}
+              </div>
+            )
+          }
+
+          return (
+            <div className="space-y-4">
+              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-600 mb-3">Eier je Woche (letzte 12)</h3>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={weeklyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#22c55e" radius={[4, 4, 0, 0]} name="Eier" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                <h3 className="text-sm font-semibold text-gray-600 mb-3">Eier je Monat (letzte 6)</h3>
+                <div className="space-y-2">
+                  {monthlyData.map(m => (
+                    <div key={m.label} className="flex items-center gap-2">
+                      <span className="text-sm text-gray-700 w-12 shrink-0">{m.label}</span>
+                      <div className="flex-1 bg-gray-100 rounded-full h-2">
+                        <div
+                          className="bg-green-400 h-2 rounded-full transition-all"
+                          style={{ width: `${(m.count / maxMonth) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-medium text-gray-600 w-8 text-right">{m.count}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-3">
+                  Gesamt: {totalEggs} {totalEggs === 1 ? 'Ei' : 'Eier'}
+                  {initialEggs > 0 && ` · ${eggs.length} in App, ${initialEggs} davor`}
+                </p>
+              </div>
+            </div>
+          )
+        })()}
 
         {activeTab === 'gesundheit' && (
           <div className="space-y-4">
