@@ -89,7 +89,13 @@ function computeAgeLabel(hatchedAt?: string | null, diedAt?: string | null): str
 }
 
 function computeLastEggLabel(latestMs: number): string {
-  const days = Math.floor((Date.now() - latestMs) / 86400000)
+  // Calendar-day based: an egg dated yesterday always reads "gestern",
+  // regardless of the time of day it was laid.
+  const start = new Date(latestMs)
+  start.setHours(0, 0, 0, 0)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const days = Math.round((today.getTime() - start.getTime()) / 86400000)
   if (days <= 0) return 'heute'
   if (days === 1) return 'gestern'
   if (days < 7) return `vor ${days} Tagen`

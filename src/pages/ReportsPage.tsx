@@ -1,6 +1,7 @@
 import { useEggs } from '../hooks/useEggs'
 import { useChickens } from '../hooks/useChickens'
 import { BarChart3 } from 'lucide-react'
+import { isoWeekNumber, startOfISOWeek } from '../utils/date'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
@@ -9,20 +10,17 @@ export function ReportsPage() {
   const { eggs } = useEggs()
   const { chickens } = useChickens()
 
-  // Last 12 weeks
+  // Last 12 ISO calendar weeks (Mon-Sun, official KW)
   const weeklyData = (() => {
-    const now = new Date()
+    const currentMonday = startOfISOWeek(new Date())
     return Array.from({ length: 12 }, (_, i) => {
-      const weekDate = new Date(now)
-      weekDate.setDate(now.getDate() - (11 - i) * 7)
-      const weekStart = new Date(weekDate)
-      weekStart.setDate(weekDate.getDate() - weekDate.getDay() + 1)
-      weekStart.setHours(0, 0, 0, 0)
+      const weekStart = new Date(currentMonday)
+      weekStart.setDate(currentMonday.getDate() - (11 - i) * 7)
       const weekEnd = new Date(weekStart)
       weekEnd.setDate(weekStart.getDate() + 7)
 
       const count = eggs.filter(e => e.laidAt >= weekStart.getTime() && e.laidAt < weekEnd.getTime()).length
-      return { label: `KW${Math.ceil((weekStart.getDate()) / 7)}`, count }
+      return { label: `KW${isoWeekNumber(weekStart)}`, count }
     })
   })()
 
