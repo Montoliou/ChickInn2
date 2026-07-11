@@ -1,0 +1,19 @@
+# Pass Authorization header to PHP (needed on shared hosting)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTP:Authorization} ^(.*)
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+
+    # Allow uploads to be served
+    RewriteRule ^uploads/ - [L]
+</IfModule>
+
+# Also try CGIPassAuth (Apache 2.4.13+)
+<IfModule mod_cgi.c>
+    CGIPassAuth On
+</IfModule>
+
+# Protect sensitive files
+<FilesMatch "(config\.php|schema\.sql)$">
+    Require all denied
+</FilesMatch>
