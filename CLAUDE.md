@@ -229,12 +229,23 @@ POST   /api/upload.php                      Foto hochladen (multipart/form-data,
 ```
 
 ## Aktueller Stand
+- `v1.7.2` ist implementiert und deployt (Live-Bundle byte-identisch mit lokalem `dist/`).
 - `v1.5` (UX Polish) ist implementiert und deployt.
 - `v1.4` (Medikation + Mauser) ist implementiert, deployt und die Migration wurde auf Produktion ausgeführt.
 - Medikation hat vollen CRUD im eigenen Tab von `ChickenDetail.tsx`.
 - Mauser hat vollen CRUD innerhalb des Gesundheit-Screens von `ChickenDetail.tsx`.
 - `medications.end_date` ist nullable; offene Einträge werden im UI als `Läuft` dargestellt.
 - Neue Endpunkte antworten produktiv korrekt und verlangen Auth (`401` ohne Token).
+
+### Seit v1.5 dazugekommen (v1.5.1 – v1.7.2)
+- `v1.5.1` Steckbrief-Card auf der Huhn-Detailseite.
+- `v1.6.0` Anfangs-Eierzahl beim Anlegen; Eier auch für tote Hühner erfassbar.
+- `v1.6.1` Ei-Autor + Log-Timestamp in der Ei-Liste von `ChickenDetail.tsx`.
+- `v1.6.2` Dashboard-Quicklog erlaubt Eier auch für „gestern".
+- `v1.6.3` Kalender-Wochen/Monatsliste korrigiert, „letztes Ei"-Label, Hold-to-log.
+- `v1.6.4` iOS-Image-Callout beim Halten unterdrückt; Ei-Sound (swell/womp).
+- `v1.7.0` Pro-Huhn-Statistik-Tab in `ChickenDetail.tsx`.
+- `v1.7.1` / `v1.7.2` Modals zentriert über der Bottom-Nav, damit Action-Buttons tappbar/sichtbar bleiben.
 
 ### v1.5 — UX Polish
 - `ToastProvider` (`src/context/ToastContext.tsx`) ist in `App.tsx` verdrahtet; alle Pages nutzen `useToast()` statt `alert()`.

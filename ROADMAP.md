@@ -101,6 +101,21 @@
   - `package.json` auf `1.5.0`
   - Dynamische Anzeige in Settings über `__APP_VERSION__` Vite define
 
+### v1.5.1 — Steckbrief
+- [x] Steckbrief-Card auf der Huhn-Detailseite (`ChickenDetail.tsx`)
+
+### v1.6 — Ei-Erfassung + Detail-Feinschliff
+- [x] Anfangs-Eierzahl beim Anlegen eines Huhns (v1.6.0)
+- [x] Eier auch für tote Hühner erfassbar (v1.6.0)
+- [x] Ei-Autor + Log-Timestamp in der Ei-Liste sichtbar (v1.6.1)
+- [x] Dashboard-Quicklog erlaubt Eier auch für „gestern" (v1.6.2)
+- [x] Kalender-Wochen/Monatsliste korrigiert, „letztes Ei"-Label, Hold-to-log (v1.6.3)
+- [x] iOS-Image-Callout beim Halten unterdrückt + Ei-Sound (swell/womp) (v1.6.4)
+
+### v1.7 — Statistik + Modal-Fixes
+- [x] Pro-Huhn-Statistik-Tab in `ChickenDetail.tsx` (v1.7.0)
+- [x] Modals zentriert über der Bottom-Nav, Action-Buttons bleiben tappbar/sichtbar (v1.7.1 / v1.7.2)
+
 ---
 
 ## Offen
