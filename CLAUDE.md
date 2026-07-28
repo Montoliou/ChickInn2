@@ -94,8 +94,8 @@ created_at TIMESTAMP DEFAULT NOW()
 ### `auth_tokens`
 ```sql
 id INT PK, user_id FK -> users
-token VARCHAR(64) UNIQUE               -- 64-Byte Hex, oder "reset:XXXXXX" für PW-Reset
-expires_at DATETIME                     -- 90 Tage (Login) oder 15 Min (Reset)
+token VARCHAR(64) UNIQUE               -- 64-Byte Hex, oder "reset:" + SHA256(code|userId) für PW-Reset
+expires_at DATETIME                     -- 90 Tage (Login) oder 15 Min (Reset), immer per MySQL DATE_ADD(NOW(), ...)
 ```
 
 ### `farms`
@@ -174,6 +174,10 @@ notes TEXT NULL
 - Jeder API-Call sendet `Authorization: Bearer <token>`
 - `requireAuth()` in config.php: validiert Token, gibt User + Farm-Daten zurück (LEFT JOIN auf farm_members + farms)
 - Password-Reset: 6-stelliger Code per E-Mail, 15 Min gültig
+- Reset-Codes werden **nie im Klartext** gespeichert: `auth_tokens.token` enthält `reset:` + die ersten 58 Zeichen von `SHA256("$code|$userId")`. Damit ist der Eintrag nicht erratbar und zwei Nutzer können nicht auf dem UNIQUE-Index kollidieren.
+- **Alle** Ablaufzeiten werden von MySQL via `DATE_ADD(NOW(), ...)` gesetzt, nie von PHP. Laufen PHP und MySQL in verschiedenen Zeitzonen, wären PHP-Timestamps gegen `NOW()` sofort abgelaufen.
+- Absender der Reset-Mail über `$MAIL_FROM` in `config.php` (Fallback `noreply@montolio.de`); muss ein echtes Postfach sein, sonst lehnt IONOS ab. Der Envelope-Sender wird via `-f` mitgegeben.
+- `reset-request` liefert `emailSent`; das Frontend zeigt bei `false` einen Fehler statt „Code gesendet".
 
 ## API-Endpoints
 ```

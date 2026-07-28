@@ -116,11 +116,24 @@
 - [x] Pro-Huhn-Statistik-Tab in `ChickenDetail.tsx` (v1.7.0)
 - [x] Modals zentriert über der Bottom-Nav, Action-Buttons bleiben tappbar/sichtbar (v1.7.1 / v1.7.2)
 
+### v1.7.3 — Password-Reset repariert
+- [x] **Ablaufzeit per MySQL statt PHP** (`DATE_ADD(NOW(), ...)`)
+  - Ursache für „Code ungültig oder abgelaufen": PHP schrieb `expires_at` in PHP-Zeit, geprüft wurde gegen MySQL-`NOW()`. Bei abweichenden Zeitzonen war jeder Code sofort tot.
+  - Gilt jetzt auch für die 90-Tage-Login-Tokens.
+- [x] **Fehlgeschlagener Mailversand wird sichtbar**
+  - `LoginPage.tsx` wertet `emailSent` aus statt immer „Code wurde gesendet" zu zeigen
+  - `error_log()` bei Fehlschlag, Envelope-Sender via `-f`, Absender über `$MAIL_FROM` konfigurierbar
+- [x] **Reset-Codes gehasht gespeichert**
+  - `reset:` + SHA256(`code|userId`) statt Klartext-Code
+  - Verhindert Nutzung des 6-stelligen Codes als Auth-Token und UNIQUE-Kollisionen zwischen Nutzern
+- Keine DB-Migration nötig (passt weiterhin in `VARCHAR(64)`)
+
 ---
 
 ## Offen
 
 ### v2.0 — Erweitert
+- [ ] Rate-Limiting auf `reset-confirm` (6-stelliger Code ist ohne Drosselung brute-forcebar; braucht eine Versuchszähler-Spalte + Migration)
 - [ ] CSV/Excel Export
 - [ ] Web Push Notifications ("kein Ei seit 3 Tagen")
 - [ ] Dark Mode (Tailwind `dark:` classes)

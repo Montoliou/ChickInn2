@@ -50,10 +50,16 @@ export function LoginPage() {
     setMessage('')
     setLoading(true)
     try {
-      await apiFetch<{ message: string }>('auth.php?action=reset-request', {
+      const res = await apiFetch<{ message: string; emailSent?: boolean }>('auth.php?action=reset-request', {
         method: 'POST',
         body: JSON.stringify({ email }),
       })
+      // The server reports emailSent: false when mail() was rejected. Without
+      // this check the screen claimed success even though no code ever arrived.
+      if (res.emailSent === false) {
+        setError('Der Code konnte nicht per E-Mail verschickt werden. Bitte wende dich an den Farm-Admin.')
+        return
+      }
       setMessage('Code wurde gesendet (prüfe dein Postfach).')
       setMode('reset-code')
     } catch (err) {
